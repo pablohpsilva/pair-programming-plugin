@@ -1,0 +1,36 @@
+# boundaries.yaml — ARCH-001
+# Which module may depend on which. Checked by `python3 tooling/gates.py boundaries`.
+# A module may always import itself. Anything not listed in may_depend_on is forbidden.
+#
+# import_names: how other code refers to this module, in any language
+#   (a Python package, a TS package name, a Go module path, a Java package...).
+# An import is matched when the imported string equals a name or starts with "<name>/" or "<name>.".
+
+version: 1
+
+modules:
+  shared:
+    path: packages/shared
+    import_names: ["shared", "@acme/shared", "example.com/mono/packages/shared"]
+    may_depend_on: []
+
+  billing:
+    path: packages/billing
+    import_names: ["billing", "@acme/billing", "example.com/mono/packages/billing"]
+    may_depend_on: [shared]
+
+  crm:
+    path: packages/crm
+    import_names: ["crm", "@acme/crm", "example.com/mono/packages/crm"]
+    may_depend_on: [shared]
+
+# Regexes that capture the imported string (group 1), per file extension.
+import_patterns:
+  ".py":   ['^\s*import\s+([\w\.]+)', '^\s*from\s+([\w\.]+)\s+import']
+  ".ts":   ['from\s+[''"]([^''"]+)[''"]', 'require\(\s*[''"]([^''"]+)[''"]\s*\)']
+  ".tsx":  ['from\s+[''"]([^''"]+)[''"]']
+  ".js":   ['from\s+[''"]([^''"]+)[''"]', 'require\(\s*[''"]([^''"]+)[''"]\s*\)']
+  ".go":   ['^\s*(?:import\s+)?(?:\w+\s+)?"([^"]+)"']
+  ".java": ['^\s*import\s+(?:static\s+)?([\w\.]+)']
+  ".kt":   ['^\s*import\s+([\w\.]+)']
+  ".rs":   ['^\s*use\s+([\w:]+)']
