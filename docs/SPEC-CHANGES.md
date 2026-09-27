@@ -6,6 +6,24 @@
 | 2026-09-27 | §2 D5, §11.1, §25 | v1 stays terminal-only, but §25 names in-session approval as a v2 item, and the confirmation is isolated behind one function (`tty.confirm`) | Keeps the v2 path open without widening v1 scope |
 | 2026-09-27 | §2 D6, §5.1, §11.3, §13.1, §15.2 | Commits are authored by the engineer with **no `Co-Authored-By` and no vendor reference anywhere**. The `[agent]` config table is deleted. The `protected` gate no longer keys on "agent commit" | Engineer's decision: no vendor reference in generated output. The gate becomes stronger, not weaker (see details) |
 | 2026-09-27 | §3 (new §3.2), §24 | In this repo the engine's **source** lives at `<root>/engine/`; `pair/engine/` is a vendored copy refreshed by `pair upgrade --from .` | Resolves a contradiction: §24 asks pair to build pair, while §19.1 protects `pair/engine/**` and §8.4 gives files under `pair/` no scope |
+| 2026-09-27 | §24 | G2: step 2's acceptance list drops C23 (needs `grant-batch`, step 8) and C27's two CI assertions (need step 7) | Step 2 could not pass its own criteria |
+| 2026-09-27 | §8.1, §10.2, §22 C22 | G4: a `char` step must raise the scope's line or branch coverage, with a `⚠️ no coverage gain: <reason>` escape recorded in the evidence, and refuses when the scope has no baseline entry | A char step exists to buy coverage on untested code, so it must buy some — without making an already-covered behaviour impossible to pin |
+| 2026-09-27 | §3.2 | G5: during development the plugin and CLI load from `engine/`; `pair upgrade --from .` refreshes `pair/engine/` at each build-step boundary | A step must take effect without a human-only upgrade commit, while still exercising §18 for real |
+| 2026-09-27 | §7.3 | G6: `log.md` is writable in every phase of an active task, and the `done` row is unreachable | The hook was right; the table was a simplification |
+| 2026-09-27 | §5.4 | G7: an unknown key in `local/config.toml` now **exits 1**, as in `config.toml` | A typo such as `user` for `me` must fail loudly, not leave a default handle nobody chose |
+| 2026-09-27 | §18 | G8: one layout version governs both `config.format` and `state.format` | A task started before an upgrade must stay readable after it |
+| 2026-09-27 | §7.4 | G9: a transition command run outside its `from` phase exits 1, names the phase and the next action | Behaviour was undefined for every command |
+| 2026-09-27 | §7.4 | G10: `pair done` refuses a step whose file set has no diff and no untracked file | One ok commit must always mean one real change (PAIR-003) |
+| 2026-09-27 | §12.4 F3 | G11: the deny message tells the agent to rephrase; the false positive is accepted and tested | Failing closed on forged approvals is right; the cost is one rephrasing |
+| 2026-09-27 | §8.1, §11.2 | G12: migrations with no `migrate_check` stay blocked; the ways out are `expedite` or a Tier 1 waiver, and `doctor` names such scopes | An irreversible migration deserves the friction, but the dead end must be visible at setup |
+| 2026-09-27 | §6.2, §11.2, §13.1 | G13: rule IDs are **unique across the repo**; `doctor` and CI `format` fail on a duplicate | `find --rule` then always has exactly one row to return |
+| 2026-09-27 | §7.2, §7.4, §13.1 | G14: the approved plan hash is stored **per step** (`approved_plan_sha256`) and compared at that ok commit | A `reopen` must not invalidate steps validated under the earlier plan |
+| 2026-09-27 | §10.5 | G15: the lesson line and confirmation sub-line get an exact regex grammar, with round-trip tests | Three commands rewrite that file; an example is not a contract |
+| 2026-09-27 | §6.3 (new) | G16: a human bumps `governance` alongside the rules; `state.governance` is captured at `start`; a mid-task bump is logged, not blocking | A rule change must not interrupt work in progress |
+| 2026-09-27 | §12.4 F4, §11.5 | G17: an absent task folder means "no active task" with an actionable message, never exit 2 | An ordinary `git checkout` must not block every edit with an opaque error |
+| 2026-09-27 | §22 | G18: C34 (`red` gate with an empty test command), C35 (a range containing a merge commit), C36 (an `approval` run across a `reopen`) | Three paths every real PR depends on, none of them tested |
+| 2026-09-27 | §21 | G19: new eval E16 (SessionStart injection) and a concrete fixture for E12 | T2 is validated once by a spike; nothing kept it working |
+| 2026-09-27 | §12.4 B1/B4, §11.1, §22 | G3: B1 is inverted into an **allowlist** of agent-safe `pair` forms; everything else denies, including anything the hook cannot parse | A denylist fails open when someone forgets a flag — which is exactly how `report --write` slipped through |
 
 ---
 

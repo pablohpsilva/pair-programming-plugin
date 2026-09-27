@@ -5,28 +5,34 @@ spec yet: each row is a question with a proposed answer, awaiting the engineer. 
 answers move to `SPEC-CHANGES.md` and then into the SPEC itself.
 
 Status: `open` · `accepted` (recorded in SPEC-CHANGES.md) · `rejected`.
+**All 19 were answered on 2026-09-27 and applied to the SPEC**, except G20, raised afterwards.
+Three answers went against the proposal written below — G7 (both config files strict), G13 (rule
+IDs must be globally unique) and G14 (the plan hash is stored per step) — and G4 gained an escape
+hatch, because requiring a char step to raise coverage would otherwise have made a
+characterization test of already-covered behaviour impossible to write at all. The proposals below
+are left as they were; the SPEC is the record of what was decided.
 
 | # | Where | Gap | Blocks | Status |
 |---|---|---|---|---|
 | G1 | §24, §19.1, §8.4 | pair cannot build pair: the engine lives on a protected path | step 3 | **accepted** (DECISIONS.md G1) |
-| G2 | §24 | Build step 2's "done when" lists tests that need steps 7 and 8 | step 2 | open |
-| G3 | §12.4 B1, §11.1 | Human-only detection is per *subcommand*, but three actions differ by flag or sub-subcommand | step 3 | open |
-| G4 | §8.1, §8.2 | Changed-line coverage requirement for `char` steps is undefined in effect | step 2 | open |
-| G5 | §18, G1 | The running engine is one `pair upgrade` behind the source being written | step 3 | open |
-| G6 | §7.3, §12.4 F6/F11 | Phase `done` row is unreachable, and F6 passes `log.md` before any phase check | step 3 | open |
-| G7 | §5.2, §5.4 | Unknown key: exit 1 in `config.toml`, warn-and-ignore in `local/config.toml` | step 1 | open |
-| G8 | §7.2, §18 | Two `format` numbers (`config.format`, `state.format`); relationship undefined | step 1 | open |
-| G9 | §7.4 | No stated behaviour for a transition command run from the wrong phase | step 1 | open |
-| G10 | §8.2 | No stated behaviour for `pair done` when the step file has no changes | step 2 | open |
-| G11 | §12.4 F3 | The anti-forgery regex also blocks legitimate agent prose | step 3 | open |
-| G12 | §8.1, §8.4 | A repo with migrations but no `migrate_check` command can never touch them | step 2 | open |
-| G13 | §14.5 | `find --rule ID` when the same ID is defined in two places | step 5 | open |
-| G14 | §13.1 `approval` | Whether the plan hash is read at the ok commit or at head — a naive read breaks reopen | step 7 | open |
-| G15 | §10.5 | Rewriting "Last used" inside a lessons file has no pinned line format | step 4 | open |
-| G16 | §5.1 | No policy for bumping `governance`, or its effect on a live approval | step 4 | open |
-| G17 | §17, §12.4 F4 | `local/active` can point at a task whose folder is absent on the checked-out branch | step 2 | open |
-| G18 | §22 | Missing acceptance tests: `red` gate with an empty test command; a range containing a merge commit | step 7 | open |
-| G19 | §21 | No eval for the SessionStart injection (T2), and E12's "two sources disagree" setup is unspecified | step 4 | open |
+| G2 | §24 | Build step 2's "done when" lists tests that need steps 7 and 8 | step 2 | accepted |
+| G3 | §12.4 B1, §11.1 | Human-only detection is per *subcommand*, but three actions differ by flag or sub-subcommand | step 3 | **accepted, changed** |
+| G4 | §8.1, §8.2 | Changed-line coverage requirement for `char` steps is undefined in effect | step 2 | accepted (+escape) |
+| G5 | §18, G1 | The running engine is one `pair upgrade` behind the source being written | step 3 | accepted |
+| G6 | §7.3, §12.4 F6/F11 | Phase `done` row is unreachable, and F6 passes `log.md` before any phase check | step 3 | accepted |
+| G7 | §5.2, §5.4 | Unknown key: exit 1 in `config.toml`, warn-and-ignore in `local/config.toml` | step 1 | **accepted, changed** |
+| G8 | §7.2, §18 | Two `format` numbers (`config.format`, `state.format`); relationship undefined | step 1 | accepted |
+| G9 | §7.4 | No stated behaviour for a transition command run from the wrong phase | step 1 | accepted |
+| G10 | §8.2 | No stated behaviour for `pair done` when the step file has no changes | step 2 | accepted |
+| G11 | §12.4 F3 | The anti-forgery regex also blocks legitimate agent prose | step 3 | accepted |
+| G12 | §8.1, §8.4 | A repo with migrations but no `migrate_check` command can never touch them | step 2 | accepted |
+| G13 | §14.5 | `find --rule ID` when the same ID is defined in two places | step 5 | **accepted, changed** |
+| G14 | §13.1 `approval` | Whether the plan hash is read at the ok commit or at head — a naive read breaks reopen | step 7 | **accepted, changed** |
+| G15 | §10.5 | Rewriting "Last used" inside a lessons file has no pinned line format | step 4 | accepted |
+| G16 | §5.1 | No policy for bumping `governance`, or its effect on a live approval | step 4 | accepted |
+| G17 | §17, §12.4 F4 | `local/active` can point at a task whose folder is absent on the checked-out branch | step 2 | accepted |
+| G18 | §22 | Missing acceptance tests: `red` gate with an empty test command; a range containing a merge commit | step 7 | accepted |
+| G19 | §21 | No eval for the SessionStart injection (T2), and E12's "two sources disagree" setup is unspecified | step 4 | accepted |
 | G20 | §4, §11.4, §22 C32 | C32 asserts no vendor reference in *generated files*, but nothing enforces it in *commit messages* at write time | step 6 | open |
 
 ---
