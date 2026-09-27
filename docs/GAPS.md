@@ -27,6 +27,7 @@ Status: `open` · `accepted` (recorded in SPEC-CHANGES.md) · `rejected`.
 | G17 | §17, §12.4 F4 | `local/active` can point at a task whose folder is absent on the checked-out branch | step 2 | open |
 | G18 | §22 | Missing acceptance tests: `red` gate with an empty test command; a range containing a merge commit | step 7 | open |
 | G19 | §21 | No eval for the SessionStart injection (T2), and E12's "two sources disagree" setup is unspecified | step 4 | open |
+| G20 | §4, §11.4, §22 C32 | C32 asserts no vendor reference in *generated files*, but nothing enforces it in *commit messages* at write time | step 6 | open |
 
 ---
 
@@ -199,3 +200,27 @@ sources disagree" has no setup.
 **Proposed:** add the two CI tests in step 7, and in step 4 add E16 (a session with no user
 prompt: the agent's first action is `pair status`) plus a concrete E12 fixture (a `docs` page
 and a `llm-wiki` page giving different rounding rules).
+
+### G20 — C32 has no runtime counterpart
+D6 forbids any AI vendor reference in generated output, and §22 C32 asserts it for generated
+*files*. Nothing checks a **commit message** as it is written. In this repo that hole was closed
+on 2026-09-27 with `githooks/commit-msg` plus `git config core.hooksPath githooks` — refuses a
+`Co-Authored-By:` naming an AI vendor, a `Claude-Session:`/`Generated-By:` trailer, or a session
+link; a human co-author trailer still passes; `--no-verify` overrides it visibly.
+
+Whether pair should do this for consuming repos is undecided, and it is not a free change:
+
+- **§4 says `pair init` MUST NOT create files outside `pair/`** beyond the three pointer files. A
+  root `githooks/` would be a fourth. Avoidable: ship the hook *inside* the engine
+  (`pair/engine/githooks/commit-msg`) and have `init` only run
+  `git config core.hooksPath pair/engine/githooks` — a config change, not a new file.
+- **`core.hooksPath` is exclusive.** Setting it silently disables any hooks the project already
+  has in `.git/hooks/`. `init` must detect that and either refuse or chain to the existing
+  directory; `doctor` should report when the path is unset or points elsewhere.
+- **It is per-clone**, since git config is not committed. `init` sets it; `doctor` must check it,
+  or the guarantee quietly lapses for everyone who cloned.
+
+**Proposed:** build step 6 (`init`, `doctor`) ships the hook inside the engine, `init` offers the
+`core.hooksPath` line after checking for existing hooks, `doctor` verifies it, §4 gains a note
+that the only thing outside `pair/` is a git *config* value, and the commit-message rule joins
+the registry as a Tier 0 engine rule enforced by "git hook + CI `format`".

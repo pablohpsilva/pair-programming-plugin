@@ -1,0 +1,35 @@
+#!/bin/sh
+# Refuse AI attribution in commit messages (DECISIONS.md D6).
+#
+# Authorship is the engineer's alone: no agent co-author trailer, no session link,
+# no vendor reference. This is the runtime counterpart of SPEC §22 C32, which makes
+# the same assertion about generated files.
+#
+# Enabled by `git config core.hooksPath githooks` — every clone must run that once.
+# Bypassable with `git commit --no-verify`, which is the point: a human can override,
+# and the override is visible.
+
+msg="$1"
+bad=""
+
+# Trailer lines naming an AI vendor or product. A human co-author trailer still passes.
+if grep -niE '^[[:space:]]*Co-Authored-By:.*(claude|anthropic|copilot|openai|gpt-|gemini|cursor|codex)' "$msg"; then
+  bad="yes"
+fi
+# Session / provenance trailers and links.
+if grep -niE '^[[:space:]]*(Claude-Session|Generated-By|AI-Generated):' "$msg"; then
+  bad="yes"
+fi
+if grep -niE 'claude\.ai/code/session|Generated with \[?Claude Code' "$msg"; then
+  bad="yes"
+fi
+
+if [ -n "$bad" ]; then
+  echo "" >&2
+  echo "commit refused: AI attribution in the commit message (DECISIONS.md D6)." >&2
+  echo "The offending line(s) are printed above." >&2
+  echo "Commits are authored by the engineer alone. Remove the trailer and commit again." >&2
+  echo "" >&2
+  exit 1
+fi
+exit 0
