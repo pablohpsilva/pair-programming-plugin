@@ -31,16 +31,21 @@ This document defines **what to build**. `pair-DESIGN.md` explains why. It's wri
 | # | Decision | Default [D] |
 |---|---|---|
 | D1 | Tool name and directory name | `pair` → `potato/pair/` |
-| D2 | CLI and hook language | Python ≥ 3.11, **standard library only** |
+| D2 | CLI and hook language | Python ≥ 3.11. **Shipped code imports the standard library only**; the engine's own test suite may use pytest and coverage.py as dev-only dependencies |
 | D3 | File formats | Human-edited config in **TOML** (read with `tomllib`); machine state in **JSON**; documents in **Markdown** |
 | D4 | Engine distribution | **Vendored** in `pair/engine/`; `pair upgrade` replaces it |
-| D5 | Where humans run human-only commands | **A terminal** (v1). In-session approval is out of scope (§25) |
-| D6 | Commit authorship | Commits are made by the CLI under the **engineer's** git identity; an agent `Co-Authored-By` trailer is added when the agent wrote the step |
+| D5 | Where humans run human-only commands | **A terminal** (v1), behind `tty.confirm`. In-session approval is a v2 item (§25) |
+| D6 | Commit authorship | Commits are made by the CLI under the **engineer's** git identity. **No co-author trailer, and no AI vendor or product named in any generated output** |
 | D7 | CI platform | GitHub Actions first; `pair check` itself is CI-agnostic |
 | D8 | Operating systems | Linux and macOS; Windows through WSL only in v1 |
 | D9 | License | MIT |
 | D10 | Initial governance version | `0.1` |
 | D11 | Scope of enforcement | **Every** change to files outside `pair/` goes through a pair task (humans use `solo` mode). Pointer files are the exception. |
+
+All eleven were confirmed on 2026-09-27; the answers and their reasoning are in
+`docs/DECISIONS.md`. D2, D5 and D6 changed, and the layout of pair's own repo was added as G1 —
+each recorded in `docs/SPEC-CHANGES.md`. Open questions still awaiting an answer live in
+`docs/GAPS.md`.
 
 ---
 
@@ -122,6 +127,22 @@ potato/
 | `pair/reports/**` | `pair report --write` | yes | **no** |
 | `pair/local/**` | CLI + hooks | no | **no** |
 
+### 3.2 This repository (building pair itself)
+
+pair's own repo is laid out differently from a consuming repo, because `pair/engine/**` is a
+protected path (§19.1) and files under `pair/` belong to no scope (§8.4) — so as written, pair
+could not build pair:
+
+| Path | What it is |
+|---|---|
+| `engine/` | The engine's **source**: `lib/pair/`, `bin/pair`, `skills/`, `hooks/`, `defaults/`, `templates/`, `migrations/`, `tests/`. An ordinary scope, declared in `pair/scopes/engine/scope.toml`, so it is written one file per validated step like any other code. |
+| `pair/engine/` | A **vendored copy** of `engine/`, refreshed with `pair upgrade --from .` at the end of each build step. A release artifact, never edited by hand. |
+| `docs/` | This spec, the design document, `DECISIONS.md`, `GAPS.md`, `SPEC-CHANGES.md`. |
+
+While developing pair, the plugin and the CLI are loaded from `engine/` directly (`PATH` →
+`engine/bin`, and see §23 T1), so a step takes effect without an upgrade. §3 above describes
+every *consuming* repo and is unaffected.
+
 ---
 
 ## 4. Files outside `pair/`
@@ -149,11 +170,6 @@ governance = "0.1"         # rules version, cited in plans and commits
 [project]
 name = "potato"
 default_branch = "main"
-
-[agent]
-names = ["Claude"]                                              # matched in Co-Authored-By trailers by CI
-email = ""                                                      # optional: agent git author email, if agents ever commit
-trailer = "Co-Authored-By: Claude <noreply@anthropic.com>"      # added by `pair ok` in agent-drives mode
 
 [steps]
 max_files = 1              # MUST be 1; more only through a batch grant
@@ -656,7 +672,7 @@ Exclusion lines MUST match `` ^- `(?<glob>[^`]+)` — (?<reason>.+) — approved
 `init`, `upgrade`, `baseline`, `start`, `mode`, `approve`, `ok`, `revert`, `close`, `resume`, `handoff`, `abandon`, `grant-batch`, `waive`, `expedite`, `lesson accept|edit|reject|dispute`, `report --write`.
 
 **Mechanism** (all three layers MUST exist):
-1. **TTY and owner check.** Refuse (exit 3) unless stdin and stdout are TTYs. Then read a confirmation from `/dev/tty`: the engineer types the task ID, or `y` for `init`/`upgrade`/`baseline`. Owner-only commands also require `me == owner` (§7.1).
+1. **TTY and owner check.** Refuse (exit 3) unless stdin and stdout are TTYs **and** `/dev/tty` can be opened. Then read a confirmation from `/dev/tty`: the engineer types the task ID, or `y` for `init`/`upgrade`/`baseline`. Owner-only commands also require `me == owner` (§7.1). Both checks are needed: `isatty` alone says nothing about the controlling terminal, and a process with piped stdio can normally still reach the engineer's screen through `/dev/tty`. [V 2026-09-27, T4: the Bash tool has no TTY on any stream **and** cannot open `/dev/tty` at all — `ENXIO`, no controlling terminal — so this layer is real enforcement, not a speed bump.] The confirmation is read through a single function (`engine/lib/pair/tty.py::confirm`) so the channel can be replaced (§25) without touching any command.
 2. **Hook deny.** B1 in §12.4.
 3. **Audit.** The action is recorded with `by: <me>` in `state.json` and in `log.md`, and its commit carries `Pair-Action: <command>`.
 
@@ -698,9 +714,8 @@ Exclusion lines MUST match `` ^- `(?<glob>[^`]+)` — (?<reason>.+) — approved
   Pair-Kind: code
   Pair-Approved-By: @ana
   Pair-Governance: 0.1
-  Co-Authored-By: Claude <noreply@anthropic.com>
   ```
-- **The `Co-Authored-By` line** (from `agent.trailer`) is added only in agent-drives mode.
+- **Authorship (D6):** every CLI commit is authored by the engineer's git identity. **No co-author trailer is added**, and no generated file, template, default config, commit message or skill text names an AI vendor or product. CI therefore never tries to recognise "a commit an agent wrote"; it gates on the `Pair-Action` trailer instead (§13.1).
 - **Commit types by kind:** stub/code/migration→`feat` (`fix` if the plan title starts with "Fix"), test/char→`test`, refactor→`refactor`, doc→`docs`, config→`chore`.
 
 ### 11.4 `pair init` (human, interactive, idempotent)
@@ -798,13 +813,12 @@ B1–B5 are heuristics. CI (§13) is the backstop.
 ### 13.1 `pair check <gate> --base <sha> --head <sha>`
 - **Range:** `merge-base(base, head)..head`, excluding merge commits. A gate that needs task history (`approval`) searches the **whole ancestry** of `head`.
 - **Output:** one line per failure: `FAIL <gate> <commit|file>: <reason> (<rule ID>)`. Exits 1 on any failure.
-- **Agent commit:** a commit with a `Co-Authored-By` trailer naming one of `agent.names`, or whose author email equals a non-empty `agent.email`.
 - **CLI commit:** a commit with a `Pair-Action` trailer.
 - **Outside files:** files outside `pair/`, excluding the pointer files (§4).
 
 | Gate | Fails when | Rule |
 |---|---|---|
-| `protected` | An agent commit touches a protected path. Exception: `Pair-Action` commits may touch their own task's `state.json`/`log.md` and the files their action writes (§11.2), and `Pair-Action: ok` may touch `rules/baseline.toml` only to increase values. | PAIR-006 |
+| `protected` | **Any** commit touches a protected path (§19.1) without being a `Pair-Action` commit whose action is permitted to write those paths (§11.2). `Pair-Action: ok` may touch `rules/baseline.toml` only to increase values. So a human hand-editing `pair/rules/` outside a `pair waive` fails too — deliberately: with no agent identity to key on (D6), the gate asks whether the *tool* made the change, not who sat at the keyboard. | PAIR-006 |
 | `commits` | (a) A commit changes outside files without being either a `Pair-Action: ok` commit, or a `Pair-Action: revert` commit whose diff is exactly the inverse of its `Pair-Reverts` commit. (b) A `Pair-Action: ok` commit changes files other than its step file set (from `state.json` in that commit's evidence) plus the task's `state.json`/`log.md` and `rules/baseline.toml`. (c) A step file set has more than one file without a batch grant or expedite in that commit's state. | PAIR-002/003/004 |
 | `approval` | A `Pair-Action: ok` commit has no ancestor commit with `Pair-Action: approve` or `expedite` for the same task, or the SHA-256 of `plan.md` at the ok commit's parent differs from `state.approval.plan_sha256` | PAIR-001 |
 | `red` | For each ok commit with `Pair-Kind: test`: in a temporary worktree at that commit, the scope's `test` command **passes**, or fails with output matching `wrong_reason_patterns`. `char`, `stub` and other kinds are skipped. | TEST-001 |
@@ -922,7 +936,7 @@ In plain words: coverage may never drop more than `t` points below the best reco
 - After a `char`, `code` or `refactor` step, if the measured line or branch value exceeds an existing baseline entry, `pair ok` raises it in the same commit.
 - Entries are never removed.
 - CI `coverage` fails if any value decreases (COV-003).
-- `pair baseline` may only raise values or add missing scopes. To lower a value (e.g. after a revert, or when deleting well-tested code), a human runs `pair baseline --lower --scope <p> --reason "<…>"`. It commits with `Pair-Action: baseline-lower` and the reason in the message. CI `coverage` accepts a decrease only in such a commit, and only when it has no agent trailer.
+- `pair baseline` may only raise values or add missing scopes. To lower a value (e.g. after a revert, or when deleting well-tested code), a human runs `pair baseline --lower --scope <p> --reason "<…>"`. It commits with `Pair-Action: baseline-lower` and the reason in the message. CI `coverage` accepts a decrease only in such a commit.
 - `pair ok` never creates entries. A scope without an entry must meet the target.
 
 ### 15.3 Boundaries
@@ -978,7 +992,8 @@ The boundaries proposal is §11.4 step 3. Observed dependencies the team wants t
 - plus `protect.extra`
 
 ### 19.2 Other requirements
-- The engine is **standard library only** and makes no network calls, except `pair upgrade --from <git-url>` through `git`.
+- The engine's **shipped code** imports the standard library only and makes no network calls, except `pair upgrade --from <git-url>` through `git`. Dev-only test dependencies (pytest, coverage.py) are declared in `engine/requirements-dev.txt` and are never imported by shipped code (D2).
+- **No vendor reference.** No generated file, template, default config, commit message or skill text names an AI vendor or product (D6).
 - The skills declare retrieved content untrusted (SEC-002).
 - Evidence summaries are redacted before they're written to `log.md` (§8.2). Full logs in `local/runs/` are never committed.
 
@@ -1060,6 +1075,8 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
 - C28: `pause`, `rework` and `lesson propose` commit only the task's state and log; starting a new task afterwards succeeds.
 - C29: a `stub` in a brand-new scope passes with pytest exit code 5.
 - C30: an expedite task's test step accepts writes to test files matching `--test-paths`.
+- C31: no module under `engine/lib/pair/` imports a non-stdlib module (D2).
+- C32: no generated file, template or commit message produced by the CLI names an AI vendor or product (D6).
 
 **Hook (`tests/hook/`)**, driven by JSON on stdin:
 - One test per row F1–F15 and B1–B6, including: `bash -c "pair ok"` and `python3 pair/engine/bin/pair ok` (deny), `pair done 2>&1` (pass), `git add .` (deny), and `pair status; sed -i s/a/b/ src/x.py` (ask: the strictest segment wins).
@@ -1072,6 +1089,7 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
 - For each gate, one failing and one passing history.
 - A full clean task (start → approve → stub → test → code → close) passes `all`.
 - An expedite task passes `all`.
+- C33: a human hand-edit of `pair/rules/overrides.md` in a commit with no `Pair-Action` trailer fails the `protected` gate (D6).
 
 ---
 
@@ -1088,7 +1106,7 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
 | T1 | A plugin loads from a folder inside the repo as a local marketplace (`/plugin marketplace add ./pair/engine`) | [T] | Ship the engine as a git marketplace; project data stays in `pair/` |
 | T2 | A SessionStart hook's output is added to the model's context | [T] | Rely on the bootstrap skill's description to trigger it |
 | T3 | Hook `deny` is honored in every permission mode, including bypass | [T] | Document "never use bypass mode"; set `permissions.disableBypassPermissionsMode` [T: exact value] |
-| T4 | The Bash tool runs without a TTY | [T] | Human-only commands rely on the hook + CI; document it |
+| T4 | The Bash tool runs without a TTY, and cannot open `/dev/tty` | [V 2026-09-27] | — (confirmed; see `engine/tests/FINDINGS.md`) |
 | T5 | Exact `tool_input` field names for Write/Edit/MultiEdit/NotebookEdit | [T] | F3 already scans every string field; adjust path fields |
 | T6 | PreToolUse fires for subagents' tool calls | [T] | The bootstrap skill already forbids delegating edits; CI backstops it |
 | T7 | The llm-wiki layout (`wiki/`, `raw/`, `CLAUDE.md`) | [T] | Detection stays configurable; a manual path is always allowed |
@@ -1113,12 +1131,12 @@ Build step 0 (§24) spikes each [T] item and records the result in `engine/tests
 | 9 | Upgrade + migrations | C20 passes |
 | 10 | **Dogfood:** one real task in a real repo, end to end | Findings folded back into this spec; version 0.2 |
 
-From step 3 on, build the engine with pair itself: test first, one file per step.
+From step 3 on, build the engine with pair itself: test first, one file per step, writing `engine/**` as a normal scope (§3.2).
 
 ---
 
 ## 25. Out of scope for v1
-- Approvals inside the Claude Code session (for example, through its multiple-choice question UI). v1 uses the terminal (D5).
+- Approvals inside the agent session (for example, through a multiple-choice question UI). v1 uses the terminal (D5); **planned for v2** behind `tty.confirm` (§11.1).
 - A mutation-testing gate (planned as an optional gate).
 - CI platforms other than GitHub Actions (`pair check` is portable; only the template is missing).
 - Windows without WSL.
