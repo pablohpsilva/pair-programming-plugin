@@ -7,9 +7,9 @@ Runbook: `docs/SPIKES.md`. Spec changes caused by a finding go to `docs/SPEC-CHA
 |---|---|---|---|
 | T1 | A plugin loads from an in-repo folder as a local marketplace | **confirmed** | §3, §3.2, §4, §11.2, §11.4, §18 — see below |
 | T2 | A SessionStart hook's output reaches the model's context | **confirmed, with a ~2 KB ceiling** | §9.1, §12.3 — see below |
-| T3 | Hook `deny` is honoured in every permission mode | not run | — |
+| T3 | Hook `deny` is honoured in every permission mode | **confirmed** (one gap: `Write` under bypass) | §11.1, §12.4, §19 — see below |
 | T4 | The Bash tool runs without a TTY | **confirmed (stronger than assumed)** | §11.1 — see below |
-| T5 | Exact `tool_input` field names for the file tools | not run | — |
+| T5 | Exact `tool_input` field names for the file tools | **partly confirmed** (`Write`, `Bash`) | §12.4 — see T3 below |
 | T6 | PreToolUse fires for a subagent's tool calls | not run | — |
 | T7 | The llm-wiki layout (`wiki/`, `raw/`, `CLAUDE.md`) | not run | — |
 
@@ -394,3 +394,70 @@ The exact threshold. The evidence says "2KB preview" for a 15 667-byte payload; 
 2 000, 2 048 or 2 KiB of UTF-8 after JSON decoding is unknown, and whether it counts bytes or
 characters is unknown. §12.3's 1 800-byte `doctor` limit is chosen to sit clear of all of them.
 A payload just under the line was not tested.
+
+---
+
+## T3 — `deny` is honoured in every permission mode
+
+- **Verdict: confirmed.** A `PreToolUse` hook returning `permissionDecision: "deny"` was reached and
+  honoured in all four modes tested, **including `--dangerously-skip-permissions`**. The canary file
+  was never created in any run. §11.1's layer 2 and all of §12.4 are genuine enforcement, not
+  advisory.
+- **Tested on:** 2026-09-28 · fixture `/tmp/pair-spike-t3`, a project-declared `.claude/settings.json`
+  `PreToolUse` hook matching `Edit|Write|MultiEdit|Bash|NotebookEdit`, four fresh sessions, same
+  first message in each: *"Create the file src/canary.py containing exactly: print(\"T3\")"*.
+
+| Launch | `permission_mode` seen | Tool the session tried | `canary.py` |
+|---|---|---|---|
+| `claude` | `auto` | `Bash` | absent |
+| `claude --permission-mode acceptEdits` | `acceptEdits` | `Write` | absent |
+| `claude --permission-mode plan` | `plan` | `Bash`, then `Write` | absent |
+| `claude --dangerously-skip-permissions` | `bypassPermissions` | `Bash` | absent |
+
+Evidence, the decisive row:
+
+```
+{"at": "2026-09-28T07:43:26+00:00", "tool": "Bash",
+ "permission_mode": "bypassPermissions", "tool_input_keys": ["command", "description"]}
+canary.py exists : no — deny honoured
+```
+
+### What this settles
+
+1. **Bypass mode does not skip hooks.** The `[T]` fallback in §23 — "bypass voids pair's in-session
+   guarantees" — is **not** needed. §19 keeps no such warning, and `pair init` does **not** need to
+   write a `disableBypassPermissionsMode` key. That probe is now optional curiosity, not a blocker.
+2. **The hook is reached in plan mode**, for both `Bash` and `Write`. §12.4 applies there too; the
+   tool is not blocked earlier by the client.
+3. **The event payload carries `permission_mode`.** §12.4 gains a cheap defensive check: the hook can
+   see it is running under `bypassPermissions` and log it, rather than trusting the mode is benign.
+   It does not *need* to refuse — deny is honoured — but recording the mode in
+   `pair/local/runs/` makes an audit answerable.
+4. **The event payload is richer than §12.4 assumed.** Every event carried:
+   `cwd`, `effort`, `hook_event_name`, `permission_mode`, `prompt_id`, `scratchpad_dir`,
+   `session_id`, `tool_input`, `tool_name`, `tool_use_id`, `transcript_path`.
+   `session_id` and `transcript_path` are directly useful — §20's metrics and §10.3's log can tie a
+   denied action to the session that attempted it.
+
+### T5, partly answered as a side effect
+
+The `tool_input` keys observed, which is exactly what T5 asks for:
+
+| Tool | `tool_input` keys |
+|---|---|
+| `Write` | `content`, `file_path` |
+| `Bash` | `command`, `description` |
+
+Still unobserved: `Edit`, `MultiEdit`, `NotebookEdit`, `Read`, `Glob`, `Grep`. §12.4's F-rows key on
+`file_path` for the write tools, which holds for `Write`; `Edit` and `MultiEdit` remain assumed.
+
+### Two things still open
+
+1. **`Write` under `bypassPermissions` was not exercised.** In mode 4 the session reached for `Bash`
+   first, was denied, and stopped — so the confirmation under bypass covers `Bash` only. The file
+   tools are what §12.4's F-rows mostly govern. A targeted re-run that forbids `Bash` in the prompt
+   would close it.
+2. **Whether the deny *reason* reaches the model** was not reported. §12.4's F-row messages exist to
+   tell the agent what to do instead (F3's "write it as prose, without a checkbox", F4's "no active
+   task"). If `permissionDecisionReason` is swallowed, every one of those strings is decoration and
+   §12.4 needs another channel. The fixture's reason string is `PAIR_DENY_5M8`.

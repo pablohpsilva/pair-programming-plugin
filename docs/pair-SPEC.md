@@ -877,6 +877,15 @@ the skill**.
 
 ### 12.4 PreToolUse decision table (first match wins)
 
+The event payload carries, on stdin: `cwd`, `effort`, `hook_event_name`, `permission_mode`,
+`prompt_id`, `scratchpad_dir`, `session_id`, `tool_input`, `tool_name`, `tool_use_id`,
+`transcript_path` [V 2026-09-28, T3]. `deny` is honoured in every permission mode, bypass
+included, so the rows below are enforcement [V 2026-09-28, T3].
+
+Every hook invocation MUST append `session_id`, `permission_mode`, `tool_name` and the decision to
+`pair/local/runs/hooks.jsonl`, so a denied action is attributable to the session that attempted it.
+`permission_mode` MUST NOT change any decision — deny holds regardless — but it MUST be recorded.
+
 **File tools (Edit, Write, MultiEdit, NotebookEdit).** `rel` = the path relative to the root after resolving `..` and symlinks:
 
 | # | Condition | Decision | Rule |
@@ -1221,7 +1230,7 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
 | V6 | `claude plugin eval` exists, with `prompt.md` + graders per case | [V] | — |
 | T1 | A plugin loads from a folder inside the repo as a local marketplace, declared by a committed `.claude/settings.json` with a relative path, with **no install step** on a clone | [V 2026-09-28] | — (fallback no longer needed; `claude plugin marketplace add ./pair --scope local` stays as the cloud-session escape, §4) |
 | T2 | A SessionStart hook's output is added to the model's context | [V 2026-09-28] partly: `additionalContext` arrives, but is **truncated to ~2 KB**, the rest persisted to a file | Injection carries a pointer only; the skill body loads by description (§12.3) |
-| T3 | Hook `deny` is honored in every permission mode, including bypass | [T] | Document "never use bypass mode"; set `permissions.disableBypassPermissionsMode` [T: exact value] |
+| T3 | Hook `deny` is honoured in every permission mode, `--dangerously-skip-permissions` included | [V 2026-09-28] | — (fallback not needed; no `disableBypassPermissionsMode` key required) |
 | T4 | The Bash tool runs without a TTY, and cannot open `/dev/tty` | [V 2026-09-27] | — (confirmed; see `engine/tests/FINDINGS.md`) |
 | T5 | Exact `tool_input` field names for Write/Edit/MultiEdit/NotebookEdit | [T] | F3 already scans every string field; adjust path fields |
 | T6 | PreToolUse fires for subagents' tool calls | [T] | The bootstrap skill already forbids delegating edits; CI backstops it |
