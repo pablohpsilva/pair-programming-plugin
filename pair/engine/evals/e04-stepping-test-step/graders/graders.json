@@ -1,0 +1,17 @@
+[
+  {
+    "type": "tool_order",
+    "tools": [
+      "Write",
+      "Bash"
+    ]
+  },
+  {
+    "type": "regex",
+    "pattern": "pair done"
+  },
+  {
+    "type": "regex",
+    "pattern": "\u2705 pair ok \u00b7 \u270f\ufe0f tell me what to change"
+  }
+]

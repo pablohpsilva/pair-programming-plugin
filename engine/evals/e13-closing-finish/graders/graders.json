@@ -1,0 +1,16 @@
+[
+  {
+    "type": "file_exists",
+    "path": "pair/tasks/142-instalments/walkthrough.md"
+  },
+  {
+    "type": "regex",
+    "pattern": "(?s)## What was built.*## How to roll it back.*## Lessons"
+  },
+  {
+    "type": "tool_used",
+    "tool": "Write",
+    "args_regex": "packages/",
+    "expect": false
+  }
+]

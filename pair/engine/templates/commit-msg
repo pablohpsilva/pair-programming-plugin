@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+"""Refuse AI attribution in commit messages (SPEC 11.3, D6).
+
+Authorship is the engineer's. A human co-author trailer still passes; `--no-verify` overrides this
+visibly, which is the point.
+"""
+import re
+import sys
+
+VENDORS = r"(claude|anthropic|copilot|chatgpt|openai|gemini|cursor|codeium|devin|llm|ai)"
+REFUSED = (
+    (re.compile(rf"^\s*co-authored-by:.*{VENDORS}", re.I | re.M), "a Co-Authored-By naming an AI"),
+    (re.compile(r"^\s*(claude-session|generated-by|x-generated-by)\s*:", re.I | re.M),
+     "a session or generator trailer"),
+    (re.compile(r"generated with \[?\s*claude", re.I), "a generated-with line"),
+    (re.compile(r"https?://claude\.ai/\S+", re.I), "a session link"),
+)
+
+
+def main(path):
+    text = open(path, encoding="utf-8").read()
+    problems = [why for pattern, why in REFUSED if pattern.search(text)]
+    if not problems:
+        return 0
+    sys.stderr.write("commit refused: authorship is the engineer's (pair D6)\n")
+    for why in problems:
+        sys.stderr.write(f"  - the message carries {why}\n")
+    sys.stderr.write("  remove it and commit again.\n")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1]))

@@ -1,0 +1,16 @@
+[
+  {
+    "type": "tool_used",
+    "tool": "Write",
+    "expect": false
+  },
+  {
+    "type": "tool_used",
+    "tool": "Edit",
+    "expect": false
+  },
+  {
+    "type": "llm",
+    "question": "Did the reply offer to review rather than to write?"
+  }
+]

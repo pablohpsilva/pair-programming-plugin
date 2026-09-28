@@ -1,0 +1,12 @@
+path = "<path under pair/scopes/>"
+cwd = "<same, or the crate root>"
+timeout_seconds = 900
+no_tests_exit_codes = []
+module = ""
+
+[commands]
+test = "cargo test --quiet"
+coverage = "cargo llvm-cov --cobertura --output-path $PAIR_COVERAGE_XML"
+lint = "cargo clippy -- -D warnings"
+validate = "cargo check"
+migrate_check = ""

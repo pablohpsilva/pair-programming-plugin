@@ -1,0 +1,12 @@
+path = "<path under pair/scopes/>"
+cwd = "<same, or the module root>"
+timeout_seconds = 600
+no_tests_exit_codes = []
+module = ""
+
+[commands]
+test = "go test ./..."
+coverage = "go test ./... -coverprofile=/tmp/pair.cov && gocover-cobertura < /tmp/pair.cov > $PAIR_COVERAGE_XML"
+lint = "go vet ./..."
+validate = "go build ./..."
+migrate_check = ""

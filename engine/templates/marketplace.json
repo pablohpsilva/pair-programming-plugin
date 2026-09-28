@@ -1,0 +1,12 @@
+{
+  "name": "pair-local",
+  "owner": { "name": "the repository's engineers" },
+  "description": "This repository's own copy of pair, loaded in place from pair/engine.",
+  "plugins": [
+    {
+      "name": "pair",
+      "source": "./engine",
+      "description": "Pair programming with the engineer at the centre: one file per validated step."
+    }
+  ]
+}

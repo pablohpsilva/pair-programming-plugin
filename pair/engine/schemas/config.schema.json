@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pair.invalid/schemas/config.schema.json",
+  "title": "pair/config.toml",
+  "x-spec": "5.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "engine",
+    "governance",
+    "project"
+  ],
+  "properties": {
+    "format": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "engine": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "governance": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "default_branch"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default_branch": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "steps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_files": {
+          "const": 1,
+          "description": "floor: MUST be 1 (SPEC 5.3)"
+        },
+        "max_changed_lines": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "batch_max_files": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tests": {
+          "$ref": "#/$defs/globList"
+        },
+        "migrations": {
+          "$ref": "#/$defs/globList"
+        },
+        "dependencies": {
+          "$ref": "#/$defs/globList"
+        },
+        "docs": {
+          "$ref": "#/$defs/globList"
+        },
+        "config": {
+          "$ref": "#/$defs/globList"
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wrong_reason_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "number",
+          "minimum": 95,
+          "maximum": 100
+        },
+        "changed_lines": {
+          "const": 100
+        },
+        "ratchet_tolerance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1.0
+        }
+      }
+    },
+    "protect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "extra": {
+          "$ref": "#/$defs/globList"
+        }
+      }
+    },
+    "shell": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ask_on_writes": {
+          "type": "boolean"
+        }
+      }
+    },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_results": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "stale_days": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "learning": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "promote_after": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "review_unused_days": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "waivers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_repeats": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        }
+      }
+    },
+    "expedite": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "review_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 72
+        },
+        "max_files": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    }
+  },
+  "$defs": {
+    "globList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "pair",
+            "docs",
+            "adr",
+            "llm-wiki",
+            "markdown"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trust": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "description": "Optional; defaults per type (SPEC 14.1)."
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

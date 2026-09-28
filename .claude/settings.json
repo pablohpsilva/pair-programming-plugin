@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "pair-local": {
+      "source": {
+        "source": "directory",
+        "path": "./pair"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "pair@pair-local": true
+  }
+}

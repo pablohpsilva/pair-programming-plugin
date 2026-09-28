@@ -1,0 +1,10 @@
+path = ""
+cwd = "."
+module = ""
+
+[commands]
+test = ""
+coverage = ""
+lint = ""
+validate = ""
+migrate_check = ""

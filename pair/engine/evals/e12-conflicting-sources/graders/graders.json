@@ -1,0 +1,18 @@
+[
+  {
+    "type": "regex",
+    "pattern": "\\[docs\\]"
+  },
+  {
+    "type": "regex",
+    "pattern": "\\[llm-wiki"
+  },
+  {
+    "type": "regex",
+    "pattern": "(?i)(disagree|conflict)"
+  },
+  {
+    "type": "llm",
+    "question": "Did the reply avoid choosing one source silently?"
+  }
+]

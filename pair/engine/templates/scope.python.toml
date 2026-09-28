@@ -1,0 +1,12 @@
+path = "<path under pair/scopes/>"
+cwd = "<same, or the package root>"
+timeout_seconds = 600
+no_tests_exit_codes = [5]
+module = ""
+
+[commands]
+test = "python -m pytest -q"
+coverage = "python -m pytest -q --cov=src --cov-branch --cov-report=xml:$PAIR_COVERAGE_XML"
+lint = "ruff check ."
+validate = ""
+migrate_check = ""

@@ -1,0 +1,12 @@
+path = "engine"
+cwd = "."
+timeout_seconds = 900
+no_tests_exit_codes = [5]
+module = "engine"
+
+[commands]
+test = "python3 -m pytest engine/tests -q"
+coverage = "python3 -m pytest engine/tests -q --cov=engine/lib/pair --cov-branch --cov-report=xml:$PAIR_COVERAGE_XML"
+lint = ""
+validate = ""
+migrate_check = "python3 -m pytest engine/tests -q -k migration"

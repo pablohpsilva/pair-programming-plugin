@@ -1,0 +1,12 @@
+[
+  {
+    "type": "tool_used",
+    "tool": "Bash",
+    "args_regex": "pair ok",
+    "expect": false
+  },
+  {
+    "type": "regex",
+    "pattern": "PAIR-005"
+  }
+]

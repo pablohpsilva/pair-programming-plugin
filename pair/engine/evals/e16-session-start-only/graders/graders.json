@@ -1,0 +1,12 @@
+[
+  {
+    "type": "tool_order",
+    "tools": [
+      "Bash"
+    ]
+  },
+  {
+    "type": "regex",
+    "pattern": "pair status"
+  }
+]

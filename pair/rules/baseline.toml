@@ -1,0 +1,2 @@
+# coverage baselines per scope (SPEC 15).
+# Empty on purpose: run `pair baseline --scope engine` to record the first measurement.

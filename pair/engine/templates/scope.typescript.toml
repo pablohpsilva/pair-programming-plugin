@@ -1,0 +1,12 @@
+path = "<path under pair/scopes/>"
+cwd = "<same, or the package root>"
+timeout_seconds = 600
+no_tests_exit_codes = []
+module = ""
+
+[commands]
+test = "npm test --silent"
+coverage = "npx jest --coverage --coverageReporters=cobertura --coverageDirectory=$(dirname $PAIR_COVERAGE_XML) && mv $(dirname $PAIR_COVERAGE_XML)/cobertura-coverage.xml $PAIR_COVERAGE_XML"
+lint = "npx eslint ."
+validate = "npx tsc --noEmit"
+migrate_check = ""

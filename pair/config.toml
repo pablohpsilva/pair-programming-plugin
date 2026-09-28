@@ -1,0 +1,13 @@
+format = 1
+engine = "0.1.0"
+governance = "0.1"
+
+[project]
+name = "pair"
+default_branch = "master"
+
+[[sources]]
+type = "docs"
+path = "docs/**/*.md"
+trust = "high"
+exclude = ["archive/**", "pilot-drafts/**"]

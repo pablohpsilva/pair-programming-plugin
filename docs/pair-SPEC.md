@@ -1133,6 +1133,12 @@ pair MUST NOT write to any source except `pair`.
   wiki's layout". The defaults above are what `pair init` offers, pre-filled and editable, and they
   are a *suggestion the engineer confirms*, never a detection rule.
 
+  **`include` and `exclude` are relative to the source's base**, never to the repository root. For
+  a directory path the base is that directory; for a glob path (`docs/**/*.md`) it is the glob's
+  literal prefix (`docs`), and the glob's own tail becomes the default `include`. Writing
+  `include = ["docs/**/*.md"]` alongside `path = "docs/**/*.md"` therefore matches nothing —
+  `pair doctor` names the base for exactly this mistake.
+
   `exclude` wins over `include` on any path both match. When a registered path matches nothing,
   `pair doctor` MUST report it as an empty source rather than passing silently — the failure mode
   this design exists to prevent is indexing raw source material, and its twin is indexing nothing

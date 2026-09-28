@@ -1,0 +1,6 @@
+[
+  {
+    "type": "llm",
+    "question": "Is the answer an explanation of about 15 lines or fewer, rather than a one-liner or an essay?"
+  }
+]

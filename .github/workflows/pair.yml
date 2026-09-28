@@ -1,0 +1,28 @@
+name: pair
+on: pull_request
+permissions: { contents: read }
+env:
+  BASE: ${{ github.event.pull_request.base.sha }}
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, ref: "${{ github.event.pull_request.head.sha }}" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: |
+          for g in protected commits approval boundaries secrets format; do
+            pair/engine/bin/pair check "$g" --base "$BASE" --head HEAD || exit 1
+          done
+  quality:
+    needs: process
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, ref: "${{ github.event.pull_request.head.sha }}" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      # PROJECT: language toolchain setup (init inserts one block per detected language)
+      - run: pair/engine/bin/pair check red      --base "$BASE" --head HEAD
+      - run: pair/engine/bin/pair check coverage --base "$BASE" --head HEAD

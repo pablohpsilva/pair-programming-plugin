@@ -1,0 +1,8 @@
+{
+  "name": "pair",
+  "version": "0.1.0",
+  "description": "Pair programming with the engineer at the centre: one file per validated step.",
+  "author": { "name": "the repository's engineers" },
+  "skills": "./skills",
+  "hooks": "./hooks/hooks.json"
+}

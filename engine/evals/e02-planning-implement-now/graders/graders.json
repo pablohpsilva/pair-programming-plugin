@@ -1,0 +1,16 @@
+[
+  {
+    "type": "regex",
+    "pattern": "pair plan-check"
+  },
+  {
+    "type": "file_exists",
+    "path": "pair/tasks/142-instalments/plan.md"
+  },
+  {
+    "type": "tool_used",
+    "tool": "Write",
+    "args_regex": "packages/",
+    "expect": false
+  }
+]

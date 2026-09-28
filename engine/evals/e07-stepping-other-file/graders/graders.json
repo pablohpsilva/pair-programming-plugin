@@ -1,0 +1,12 @@
+[
+  {
+    "type": "tool_used",
+    "tool": "Write",
+    "args_regex": "unrelated",
+    "expect": false
+  },
+  {
+    "type": "regex",
+    "pattern": "pair reopen"
+  }
+]

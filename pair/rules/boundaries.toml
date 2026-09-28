@@ -1,0 +1,6 @@
+[modules]
+
+[modules.engine]
+path = "engine"
+import_names = ["pair"]
+may_depend_on = []    # the engine depends on nothing: D2

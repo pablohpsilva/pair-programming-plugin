@@ -1,0 +1,11 @@
+[
+  {
+    "type": "tool_used",
+    "tool": "Write",
+    "expect": false
+  },
+  {
+    "type": "regex",
+    "pattern": "pair ok"
+  }
+]

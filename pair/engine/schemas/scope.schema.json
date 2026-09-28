@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pair.invalid/schemas/scope.schema.json",
+  "title": "pair/scopes/**/scope.toml",
+  "x-spec": "8.4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path", "commands"],
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "MUST equal the folder path under pair/scopes/; \"\" for _repo. Checked against the filesystem in schema.py, not here."
+    },
+    "cwd": { "type": "string", "description": "Defaults to path; \".\" for _repo." },
+    "timeout_seconds": { "type": "integer", "minimum": 1 },
+    "no_tests_exit_codes": { "type": "array", "items": { "type": "integer" } },
+    "module": { "type": "string", "description": "Links to boundaries.toml; \"\" if none." },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "test": { "type": "string" },
+        "coverage": { "type": "string" },
+        "lint": { "type": "string" },
+        "validate": { "type": "string" },
+        "migrate_check": { "type": "string" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "number", "minimum": 0, "maximum": 100,
+          "description": "MAY only be >= the project's coverage.target. That comparison needs both documents, so it lives in schema.py."
+        }
+      }
+    }
+  }
+}
