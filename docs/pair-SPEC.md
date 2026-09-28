@@ -70,9 +70,10 @@ potato/
     │   ├── defaults/
     │   │   ├── config.toml           # defaults and floors (§5.3)
     │   │   └── rules.md              # the rule registry (§6.1)
+    │   ├── schemas/                  # JSON Schemas for every structured format; read by tests, never by the CLI (§3.4)
     │   ├── templates/                # plan, step-report, walkthrough, scope.<lang>.toml, README, AGENTS, ci-github.yml, adr
     │   ├── migrations/               # NNN_<name>.py (§18)
-    │   ├── tests/                    # the engine's own tests (§22) + FINDINGS.md (§23)
+    │   ├── tests/                    # the engine's own tests (§22) + fixtures/ and golden/ (§3.4) + FINDINGS.md (§23)
     │   └── evals/                    # claude plugin eval suite (§21)
     │
     ├── rules/                        # ── PROJECT RULES (human-owned)
@@ -154,13 +155,68 @@ could not build pair:
 
 | Path | What it is |
 |---|---|
-| `engine/` | The engine's **source**: `lib/pair/`, `bin/pair`, `skills/`, `hooks/`, `defaults/`, `templates/`, `migrations/`, `tests/`. An ordinary scope, declared in `pair/scopes/engine/scope.toml`, so it is written one file per validated step like any other code. |
+| `engine/` | The engine's **source**: `lib/pair/`, `bin/pair`, `skills/`, `hooks/`, `defaults/`, `schemas/`, `templates/`, `migrations/`, `tests/`. An ordinary scope, declared in `pair/scopes/engine/scope.toml`, so it is written one file per validated step like any other code. |
 | `pair/engine/` | A **vendored copy** of `engine/`, refreshed with `pair upgrade --from .` at the end of each build step. A release artifact, never edited by hand. |
-| `docs/` | This spec, the design document, `DECISIONS.md`, `GAPS.md`, `SPEC-CHANGES.md`. |
+| `docs/` | This spec, the design document, `DECISIONS.md`, `GAPS.md`, `SPEC-CHANGES.md`, and `MODULES.md` (§3.4). |
 
 While developing pair, the plugin and the CLI are loaded from `engine/` directly (`PATH` →
 `engine/bin`, and see §23 T1), so a step takes effect without an upgrade. §3 above describes
 every *consuming* repo and is unaffected.
+
+### 3.4 Four artifacts the build steps share
+
+These exist before build step 1 so that no step has to invent where they go. Each is governed here,
+and each has a test that fails when it is ignored — a map nobody checks is worse than no map (P9).
+
+| Artifact | What it holds | Enforced by |
+|---|---|---|
+| `docs/MODULES.md` | Every module of `engine/lib/pair/`, its responsibility, and its **layer**. | C38 |
+| `engine/schemas/` | A JSON Schema per structured format. **Shipped and vendored, read only by tests.** | C39 |
+| `engine/tests/fixtures/` | One directory per fixture, each a `build.sh` that constructs a repo from scratch. | C40 |
+| `engine/tests/golden/` | Expected output, byte for byte, one file per case. | §22.1 |
+
+**`MODULES.md` is a layering contract.** Each module carries an integer layer; a module may import
+another `pair` module only when its layer is **strictly lower**. That one rule makes the graph
+acyclic by construction, so no test hunts for cycles, and two modules in the same layer can never
+depend on each other. A module listed there MAY be absent — the table is the plan too — but a module
+on disk that is **not** listed fails C38, which is how a module gets added without anyone deciding
+where it belongs. Moving a module between layers is a design decision and is argued in the step
+report.
+
+**Schemas never run in production.** The shipped engine validates with the hand-written checks in
+`engine/lib/pair/schema.py` (standard library only, D2); `jsonschema` is declared in
+`engine/requirements-dev.txt` and is imported by tests alone (§19.2). The schemas earn their place
+by being an **independent** statement of each format: C39 validates the SPEC's own literal example
+against the schema, so a format that changes here and not there fails at once, and asserts that
+`schema.py` and the schema reach the same verdict on every example, so a divergence is reported as
+the bug it is in the module that actually ships. A schema describes the **parsed** document, so a
+TOML format's schema describes what `tomllib` returns, not the file's text.
+
+Every format below MUST have a schema, added by the build step that first writes it:
+
+`config.toml` (§5.1) · `local/config.toml` (§5.4) · `scope.toml` (§8.4) · `state.json` (§7.2) ·
+`rules/baseline.toml` (§15.1) · `rules/waivers.toml` (§10.6) · `rules/boundaries.toml` (§10.7) ·
+`local/index.json` (§14.4) · `local/find_log/<task>.jsonl` (§9.4) · `local/runs/hooks.jsonl` (§12.4)
+
+**Fixtures are built, never committed.** A committed `.git` inside this repository would need a
+submodule or a renamed directory, and either turns every `git log`, `git status` and worktree call
+in a test into a special case — precisely the calls that most need to be trusted, since the CLI is
+mostly git. Building also makes the history legible: a test that depends on a commit carrying
+`Pair-Action: ok` can point at the line that wrote it, where a packed object cannot be read in
+review. `build.sh <target-dir>` refuses a non-empty target, writes nothing outside it (D15), fixes
+`user.name`, `user.email` and the commit dates so SHAs are reproducible, and never invokes `pair` —
+a fixture is the starting state, and the test drives the CLI. The cost is speed, paid once: each
+fixture is built once per session and copied per test, in `engine/tests/conftest.py`.
+
+`conftest.py` also runs the whole suite under an **empty `$HOME`** with git's global and system
+config pointed at an empty file. C37 asserts that nothing writes outside the repository; doing it
+for every test means a command that reaches for `~/.claude/` fails in whichever test provoked it.
+
+**Golden files hold only output that is deterministic by construction.** Timestamps come through the
+`clock` seam and paths are repo-relative; a golden file containing a regex is not a golden file.
+`PAIR_UPDATE_GOLDEN=1` rewrites them from actual output **and fails the run anyway**, so an update
+can never be mistaken for a pass, and the diff goes in the step report — a changed golden file is a
+changed contract.
 
 ---
 
@@ -722,7 +778,7 @@ may_depend_on = ["shared"]
 
 [import_patterns]            # regex group 1 = imported name, per file extension
 ".py" = ['^\s*import\s+([\w.]+)', '^\s*from\s+([\w.]+)\s+import']
-".ts" = ['from\s+[''"]([^''"]+)[''"]', 'require\(\s*[''"]([^''"]+)[''"]\s*\)']
+".ts" = ['''from\s+['"]([^'"]+)['"]''', '''require\(\s*['"]([^'"]+)['"]\s*\)''']
 ".go" = ['^\s*(?:import\s+)?(?:\w+\s+)?"([^"]+)"']
 ".java" = ['^\s*import\s+(?:static\s+)?([\w.]+)']
 ".rs" = ['^\s*use\s+([\w:]+)']
@@ -1274,6 +1330,28 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
   and a full task end to end with `$HOME` pointed at an empty directory; assert that directory is
   still empty afterwards, and that no argument list contains `--scope user` or `git config --global`
   (§4).
+- C38: **the import graph matches `docs/MODULES.md`** (§3.4): every module on disk is listed; every
+  `pair` import points to a strictly lower layer; the layers are contiguous from 0. A module listed
+  but absent passes. Skipped where `MODULES.md` is not vendored.
+- C39: **every schema agrees with the SPEC and with `schema.py`** (§3.4): each file in
+  `engine/schemas/` is a valid draft 2020-12 schema naming its SPEC section in `x-spec`; the literal
+  example in that section validates against it; and for every example, fixture and golden file of
+  that format, `jsonschema` and `pair.schema` return the same verdict. The first two skip where the
+  SPEC is not vendored; the third runs everywhere.
+- C40: **every fixture keeps the build contract** (§3.4): `build.sh` is executable, refuses a
+  non-empty target, and produces a git repo with a clean tree; no fixture has a committed `.git`.
+
+### 22.1 How the suite is organised
+
+- `tests/cli/`, `tests/hook/`, `tests/ci/` hold the tests for the C-numbers above.
+- `tests/fixtures/` and `tests/golden/` are described in §3.4; `tests/conftest.py` owns the isolated
+  `$HOME` and builds each fixture once per session.
+- A golden comparison is byte for byte. `PAIR_UPDATE_GOLDEN=1` rewrites every golden file from
+  actual output and then **fails the run**, so an updating run is never read as a passing one.
+- Anything non-deterministic is seamed, not normalised: `clock.now` for time, repo-relative paths
+  for paths. Fixture commit dates are fixed, so a golden file may name a commit SHA.
+- C31 (no non-stdlib import in shipped code) is checked by reading the AST, not by importing: an
+  import inside a `try` or behind a platform check still breaks a colleague who installed nothing.
 
 **Hook (`tests/hook/`)**, driven by JSON on stdin:
 - One test per row F1–F15 and B1–B6, including: `bash -c "pair ok"` and `python3 pair/engine/bin/pair ok` (deny), `pair done 2>&1` (pass), `git add .` (deny), and `pair status; sed -i s/a/b/ src/x.py` (ask: the strictest segment wins).

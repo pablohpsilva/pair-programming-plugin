@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pair.invalid/schemas/local-config.schema.json",
+  "title": "pair/local/config.toml",
+  "x-spec": "5.4",
+  "description": "Personal, not committed. Only these keys are allowed; an unknown key is an error (SPEC 5.4).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "me": { "type": "string", "pattern": "^@[\\w.-]+$" },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "config.schema.json#/$defs/source" }
+    }
+  }
+}

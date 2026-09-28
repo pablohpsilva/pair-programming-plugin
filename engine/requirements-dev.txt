@@ -1,0 +1,6 @@
+# Test-only dependencies. Shipped engine code imports the standard library only (D2, SPEC 19.2);
+# nothing here may be imported by anything under engine/lib/ or engine/bin/.
+# engine/tests/test_no_runtime_deps.py enforces that.
+pytest>=8.0
+coverage>=7.4
+jsonschema>=4.21       # validates engine/schemas/ against the SPEC examples only (SPEC 3.4)

@@ -24,6 +24,7 @@ stays the source of truth for behaviour.**
 | D14 | Where the `pair` CLI ships | In the plugin's `bin/`, so it is on the agent's PATH — accepting that the plugin is terminal-only | new |
 | D6b | Reach of the no-vendor-reference rule | Extends to this spec's own prose, not only to commits and generated output | extended |
 | D15 | Scope of everything pair installs | **Project only.** No command writes to `~/.claude/`, uses `--scope user`, or touches global git config | new |
+| D16 | The four shared build artifacts | `docs/MODULES.md` is an **enforced** layering contract; `engine/schemas/` ships but is read only by tests; fixtures are **built** by `build.sh`, never committed | new |
 
 ---
 
@@ -210,3 +211,65 @@ argument list contains `--scope user` or `git config --global`.
 
 Build step 0 is the evidence this is achievable: the entire install flow ran at project scope and
 left the engineer's settings untouched (T1.2).
+
+---
+
+## D16 — MODULES.md is enforced, schemas are for tests, fixtures are built (2026-09-28)
+
+Three questions asked before build step 1, because all three would otherwise be answered by whoever
+wrote the first module, silently and per file. SPEC §3.4 records the result; C38–C40 enforce it.
+
+### `docs/MODULES.md` is enforced, not prose
+
+Every module of `engine/lib/pair/` carries an integer **layer**, and a module may import another
+`pair` module only when its layer is strictly lower. C38 reads the table and walks the AST.
+
+A prose module map would have been free to write and worth nothing by step 5: pair's own rules say
+enforce with tools, not prose (P9), and a boundaries gate for *other* repos (§13 `boundaries`, ARCH-001)
+while the engine's own layering went unchecked would be the clearest possible case of not eating the
+cooking. The layer rule is deliberately the cheapest one that works — strictly-lower ordering makes
+the graph acyclic by construction, so there is no cycle detection to write and no allow-list per
+module to maintain. Two modules in the same layer can never import each other, which is the single
+most common way a dependency graph rots.
+
+A listed module MAY be absent: the table is the plan as much as the map, and the build steps fill it
+in. A module on disk that is **not** listed fails, because that is how a module appears without
+anyone deciding which layer it belongs to.
+
+The four layer-1 modules that exist only because of D2 — `globs`, `tomlio`, `schema`, `gitcmd` — are
+named in `MODULES.md` with that reason attached, so a later reader does not "simplify" one away by
+reaching for a dependency.
+
+### `engine/schemas/` ships, and only tests read it
+
+The engine validates with hand-written standard-library checks (`schema.py`), because D2 allows no
+runtime dependency. The schemas are a **second, independent** statement of each format, and C39 uses
+them twice: it validates the SPEC's own literal example against the schema, so a format that changes
+in one place and not the other fails immediately; and it asserts that `jsonschema` and `schema.py`
+reach the same verdict, so a divergence is reported as a bug in the module that actually ships.
+
+Rejected: keeping the schemas out of the shipped tree. They are small, they are the clearest
+documentation of each format that exists, and a consuming repo that vendors the engine gets the
+second leg of C39 for free — the leg that checks the production validator.
+
+`jsonschema` is in `engine/requirements-dev.txt`. C31 reads the AST of every shipped file to prove
+nothing imports it, or pytest, or coverage.
+
+### Fixtures are built by `build.sh`, never committed
+
+A committed `.git` inside this repository needs either a submodule or a renamed directory, and both
+turn every `git log`, `git status` and worktree call in a test into a special case — exactly the
+calls that most need to be trusted, since the CLI is mostly git.
+
+Building also makes the history reviewable. A test that depends on "a commit whose trailer is
+`Pair-Action: ok`" can point at the line of `build.sh` that wrote it; a packed object cannot be read
+in a pull request.
+
+The cost is speed, and it is paid once: `conftest.py` builds each fixture once per session and copies
+the tree per test. `build.sh` fixes `user.name`, `user.email` and the commit dates, so SHAs are
+reproducible and a golden file may name one. It never invokes `pair`: a fixture is the starting
+state, and a fixture built by the code under test proves nothing.
+
+`conftest.py` also points `$HOME` and git's global and system config at empty directories for the
+whole session. C37 asserts that no command writes outside the repository (D15); doing it everywhere
+means a command that reaches for `~/.claude/` fails in whichever test provoked it, not only in C37.

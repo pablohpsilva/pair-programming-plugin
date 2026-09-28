@@ -5,7 +5,7 @@ spec yet: each row is a question with a proposed answer, awaiting the engineer. 
 answers move to `SPEC-CHANGES.md` and then into the SPEC itself.
 
 Status: `open` · `accepted` (recorded in SPEC-CHANGES.md) · `rejected`.
-**All 19 were answered on 2026-09-27 and applied to the SPEC.** G20, raised afterwards, was resolved on 2026-09-28 by D12: `pair init` commits `githooks/commit-msg` and `pair doctor` checks that `core.hooksPath` activates it. No gap is open.
+**All 19 were answered on 2026-09-27 and applied to the SPEC.** G20, raised afterwards, was resolved on 2026-09-28 by D12: `pair init` commits `githooks/commit-msg` and `pair doctor` checks that `core.hooksPath` activates it. **G21 is open**, found on 2026-09-28 while writing `engine/schemas/state.schema.json`: the schema had to enumerate `evidence.result`, and the SPEC attests only two of its values.
 Three answers went against the proposal written below — G7 (both config files strict), G13 (rule
 IDs must be globally unique) and G14 (the plan hash is stored per step) — and G4 gained an escape
 hatch, because requiring a char step to raise coverage would otherwise have made a
@@ -34,6 +34,7 @@ are left as they were; the SPEC is the record of what was decided.
 | G18 | §22 | Missing acceptance tests: `red` gate with an empty test command; a range containing a merge commit | step 7 | accepted |
 | G19 | §21 | No eval for the SessionStart injection (T2), and E12's "two sources disagree" setup is unspecified | step 4 | accepted |
 | G20 | §4, §11.4, §22 C32 | C32 asserts no vendor reference in *generated files*, but nothing enforces it in *commit messages* at write time | step 6 | **resolved** (D12) |
+| G21 | §7.2, §8.2 | `evidence.result` has no defined value for a step kind that runs no command (`doc`, `config`), nor for a `stub` step whose scope reports "no tests collected" | step 2 | **open** |
 
 ---
 
@@ -230,3 +231,33 @@ Whether pair should do this for consuming repos is undecided, and it is not a fr
 `core.hooksPath` line after checking for existing hooks, `doctor` verifies it, §4 gains a note
 that the only thing outside `pair/` is a git *config* value, and the commit-message rule joins
 the registry as a Tier 0 engine rule enforced by "git hook + CI `format`".
+
+---
+
+## G21 — what `evidence.result` is when nothing ran
+
+**Where:** §7.2 (`state.json`), §8.2 (evidence mechanics), §8.4 (empty commands).
+
+§7.2's example shows `"result": "red"` and `"result": "green"`, and §8.2 says which command each kind
+runs: `stub` and `test` run `test`; `char`, `code` and `refactor` run `coverage`. It says nothing
+about the other three kinds, and two cases have no value to record:
+
+1. **`doc` and `config` steps run no command.** Is `evidence` absent, `null`, or a third result?
+   `pair ok` needs an answer, because it stores hashes of the file set (§8.2) and those belong in
+   `evidence`, so `evidence` cannot simply be missing.
+2. **A `stub` step whose scope reports "no tests collected."** §8.4 gives `no_tests_exit_codes` and
+   C29 says such a step *passes* with pytest's exit code 5 — but a passing stub is not `green`, and
+   calling it `red` would make the `red` CI gate (§13) inspect a run that never had a test to fail.
+   The gate skips `stub`, so nothing breaks today; the value stored is still undefined.
+3. **A `migration` step** presumably runs `migrate_check`, which §8.2 never says.
+
+**Found by:** writing the schema for `state.json`. The enum could not be written without deciding
+this, and guessing would have put four invented values into a file that the CLI is then tested
+against.
+
+**Proposed:** `result` ∈ `red | green | none`, where `none` means no command was defined for the
+kind, plus `no-tests` for case 2 so that C29's pass is distinguishable in `log.md` and in
+`pair status`. §8.2 gains a row per kind, including `migration` → `migrate_check`. The schema keeps
+`red | green` until this is decided, and cites this gap.
+
+**Blocks:** build step 2 (evidence). Step 1 does not touch it.

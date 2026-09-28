@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pair.invalid/schemas/waivers.schema.json",
+  "title": "pair/rules/waivers.toml",
+  "x-spec": "10.6",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "waiver": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "reason", "scope", "granted_by", "granted_at", "expires"],
+        "properties": {
+          "rule": { "type": "string", "pattern": "^[A-Z]+-\\d{3}$" },
+          "reason": { "type": "string", "minLength": 1 },
+          "scope": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+          "granted_by": { "type": "string", "pattern": "^@[\\w.-]+$" },
+          "granted_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "expires": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "task": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -43,6 +43,10 @@
 | 2026-09-27 | §22 | G18: C34 (`red` gate with an empty test command), C35 (a range containing a merge commit), C36 (an `approval` run across a `reopen`) | Three paths every real PR depends on, none of them tested |
 | 2026-09-27 | §21 | G19: new eval E16 (SessionStart injection) and a concrete fixture for E12 | T2 is validated once by a spike; nothing kept it working |
 | 2026-09-27 | §12.4 B1/B4, §11.1, §22 | G3: B1 is inverted into an **allowlist** of agent-safe `pair` forms; everything else denies, including anything the hook cannot parse | A denylist fails open when someone forgets a flag — which is exactly how `report --write` slipped through |
+| 2026-09-28 | §3 (new §3.4), §3.2, §22 C38–C40, new §22.1 | Four shared build artifacts are named and enforced: `docs/MODULES.md` (layered import contract), `engine/schemas/` (shipped, read only by tests), `engine/tests/fixtures/` (built by `build.sh`, never committed), `engine/tests/golden/` | None of the four appeared anywhere in the spec, so build step 1 would have invented their location and their rules per file (D16) |
+| 2026-09-28 | §3 engine tree, §3.2 | `schemas/` added to the vendored engine layout; `docs/` row names `MODULES.md`; `tests/` row names `fixtures/` and `golden/` | The folder contract has to list what is actually shipped |
+| 2026-09-28 | §10.7 | The `.ts` row of `import_patterns` now uses TOML multi-line literal strings (`'''…'''`) | **The example was not valid TOML.** A literal string cannot contain `'`, and the regex character class `['"]` does; `tomllib` rejected the block with "Unclosed array". Found by C39 validating the spec's own example |
+| 2026-09-28 | §22 C31 | Restated as a check on the AST rather than on imports at runtime | An import inside a `try` or behind a platform check still breaks a colleague who installed nothing |
 
 ---
 
@@ -109,3 +113,30 @@ Add after §3.1:
 
 And in §24, the note under the table becomes: "From step 3 on, build the engine with pair itself:
 test first, one file per step, writing `engine/**` as a normal scope (§3.2)."
+
+---
+
+## 2026-09-28 · §10.7's example did not parse
+
+The TypeScript row of `import_patterns` was written as:
+
+```
+".ts" = ['from\s+[''"]([^''"]+)[''"]', 'require\(\s*[''"]([^''"]+)[''"]\s*\)']
+```
+
+The intent is the character class `['"]` — a single or a double quote. But TOML's single-quoted
+*literal* string cannot contain a single quote at all, and there is no escape inside one, so the
+doubled `''` closed the string and reopened it. `tomllib` fails with `Unclosed array (at line 13,
+column 20)`.
+
+It is now:
+
+```
+".ts" = ['''from\s+['"]([^'"]+)['"]''', '''require\(\s*['"]([^'"]+)['"]\s*\)''']
+```
+
+A multi-line literal string may contain single quotes, so the regex reads exactly as intended and
+needs no escaping. Verified: `tomllib` parses it to `from\s+['"]([^'"]+)['"]`.
+
+This is the first thing C39 caught, before any of pair's code exists. It is the argument for the
+schemas: the format most likely to be wrong is the one nobody has yet had to parse.

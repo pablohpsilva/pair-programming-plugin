@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pair.invalid/schemas/state.schema.json",
+  "title": "pair/tasks/<id>/state.json",
+  "x-spec": "7.2",
+  "description": "Written only by the CLI (SPEC 3.1). Commit SHAs are never stored.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "task", "owner", "branch", "mode", "status", "phase", "governance",
+               "created_at", "current_step", "steps"],
+  "properties": {
+    "format": { "type": "integer", "minimum": 1 },
+    "task": { "type": "string", "minLength": 1 },
+    "owner": { "$ref": "#/$defs/handle" },
+    "branch": { "type": "string", "minLength": 1 },
+    "mode": { "enum": ["agent-drives", "engineer-drives", "solo"] },
+    "status": { "enum": ["active", "paused", "expedite", "closed", "abandoned"] },
+    "phase": { "enum": ["planning", "stepping", "review", "closing", "done"] },
+    "governance": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "approval": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["by", "at", "plan_sha256"],
+          "properties": {
+            "by": { "$ref": "#/$defs/handle" },
+            "at": { "$ref": "#/$defs/timestamp" },
+            "plan_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      ]
+    },
+    "batches": { "type": "array", "items": { "$ref": "#/$defs/batch" } },
+    "expedite": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["by", "at", "reason", "test_paths", "paths"],
+          "properties": {
+            "by": { "$ref": "#/$defs/handle" },
+            "at": { "$ref": "#/$defs/timestamp" },
+            "reason": { "type": "string", "minLength": 1 },
+            "test_paths": { "$ref": "#/$defs/globList" },
+            "paths": { "$ref": "#/$defs/globList" },
+            "review_by": { "$ref": "#/$defs/timestamp" }
+          }
+        }
+      ]
+    },
+    "current_step": { "type": "integer", "minimum": 0 },
+    "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+    "lessons": { "type": "array", "items": { "$ref": "#/$defs/lesson" } },
+    "lessons_used": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "events": { "type": "array", "items": { "$ref": "#/$defs/event" } }
+  },
+  "$defs": {
+    "handle": { "type": "string", "pattern": "^@[\\w.-]+$" },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "minLength": 1 },
+    "globList": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "batch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "paths", "max_files", "by", "at"],
+      "properties": {
+        "step": { "type": "integer", "minimum": 1 },
+        "paths": { "$ref": "#/$defs/globList" },
+        "max_files": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "include_tests": { "type": "boolean" },
+        "by": { "$ref": "#/$defs/handle" },
+        "at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "kind", "files", "behavior", "status"],
+      "properties": {
+        "n": { "type": "integer", "minimum": 1 },
+        "kind": { "enum": ["stub", "test", "char", "code", "refactor", "doc", "config", "migration"] },
+        "files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "behavior": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["pending", "submitted", "ok"] },
+        "approved_plan_sha256": { "$ref": "#/$defs/sha256" },
+        "evidence": { "$ref": "#/$defs/evidence" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result"],
+      "properties": {
+        "result": { "enum": ["red", "green"], "description": "SPEC 7.2 shows only these two. What a doc/config step records, and what a stub step records when its scope reports no tests collected, is open: GAPS.md G21." },
+        "summary": { "type": "string" },
+        "at": { "$ref": "#/$defs/timestamp" },
+        "tests": { "type": "string" },
+        "changed_lines_covered": { "type": "number", "minimum": 0, "maximum": 100 },
+        "scope_line": { "type": "number", "minimum": 0, "maximum": 100 },
+        "scope_branch": { "type": "number", "minimum": 0, "maximum": 100 },
+        "floor_line": { "type": "number", "minimum": 0, "maximum": 100 },
+        "floor_branch": { "type": "number", "minimum": 0, "maximum": 100 },
+        "committed_files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "files_sha256": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "lesson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "domain", "text", "status"],
+      "properties": {
+        "n": { "type": "integer", "minimum": 1 },
+        "domain": { "type": "string", "minLength": 1 },
+        "text": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["proposed", "accepted", "edited", "rejected", "disputed"] }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "by", "action"],
+      "properties": {
+        "at": { "$ref": "#/$defs/timestamp" },
+        "by": { "$ref": "#/$defs/handle" },
+        "action": { "type": "string", "minLength": 1 },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}
