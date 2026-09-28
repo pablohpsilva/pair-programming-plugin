@@ -886,6 +886,12 @@ Every hook invocation MUST append `session_id`, `permission_mode`, `tool_name` a
 `pair/local/runs/hooks.jsonl`, so a denied action is attributable to the session that attempted it.
 `permission_mode` MUST NOT change any decision — deny holds regardless — but it MUST be recorded.
 
+**Every deny message in the rows below is an instruction to the agent, not a log line.**
+`permissionDecisionReason` reaches the model verbatim and the model acts on it
+[V 2026-09-28, T3b]: in the spike it quoted the reason, did not retry, and did not reach for
+another tool, because the reason said not to. So each message MUST name the correct next action,
+and MUST NOT merely state what was refused.
+
 **File tools (Edit, Write, MultiEdit, NotebookEdit).** `rel` = the path relative to the root after resolving `..` and symlinks:
 
 | # | Condition | Decision | Rule |
