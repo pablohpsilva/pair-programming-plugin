@@ -9,8 +9,8 @@ Runbook: `docs/SPIKES.md`. Spec changes caused by a finding go to `docs/SPEC-CHA
 | T2 | A SessionStart hook's output reaches the model's context | **confirmed, with a ~2 KB ceiling** | §9.1, §12.3 — see below |
 | T3 | Hook `deny` is honoured in every permission mode | **confirmed** | §11.1, §12.4, §19 — see below |
 | T4 | The Bash tool runs without a TTY | **confirmed (stronger than assumed)** | §11.1 — see below |
-| T5 | Exact `tool_input` field names for the file tools | **partly confirmed** (`Write`, `Bash`) | §12.4 — see T3 below |
-| T6 | PreToolUse fires for a subagent's tool calls | not run | — |
+| T5 | Exact `tool_input` field names for the file tools | **confirmed** for 5 tools; 4 unobserved | §12.1, §12.4 — see below |
+| T6 | PreToolUse fires for a subagent's tool calls | **confirmed** | §12.1 — see below |
 | T7 | The llm-wiki layout (`wiki/`, `raw/`, `CLAUDE.md`) | not run | — |
 
 ---
@@ -477,3 +477,62 @@ Both remaining gaps close, and the second is the more valuable:
    written as **instructions to the agent**, not as diagnostics for a log.
 
 This is P9 working as designed: the tool refuses, and the refusal carries the correction.
+
+---
+
+## T5 and T6 — Tool payloads, and subagents
+
+- **Verdict: both confirmed**, and together they expose a flaw in §12.1's matcher that neither
+  spike was looking for.
+- **Tested on:** 2026-09-28 · fixture `/tmp/pair-spike-t56`, an **allow-and-log** `PreToolUse` hook
+  (matcher `*`, exit 0, blocks nothing), one session instructed to read, glob, grep, edit, multi-edit
+  and then delegate a read to a subagent. 11 events logged.
+
+### T5 — `tool_input` field names
+
+| Tool | `tool_input` keys |
+|---|---|
+| `Write` | `file_path`, `content` (from T3) |
+| `Edit` | `file_path`, `old_string`, `new_string`, `replace_all` |
+| `Read` | `file_path` |
+| `Bash` | `command`, `description` |
+| `Agent` | `description`, `prompt`, `subagent_type` |
+
+`file_path` holds for every file tool observed, so §12.4's F-rows key on the right field. `Edit`
+carries an extra `replace_all` the spec did not know about; it changes no decision.
+
+**`MultiEdit`, `NotebookEdit`, `Glob` and `Grep` produced no events.** For `MultiEdit` the likely
+explanation is that it does not exist in the client tested — §12.4 named it in four places. For
+`Glob`/`Grep` the session may simply have used `Bash` instead (there were `Bash` events); the two
+cases cannot be distinguished from this log, and are recorded as unobserved rather than absent.
+
+### T6 — Subagents are covered
+
+```
+distinct session_id: 00b595ec: 11          (one session, the parent's)
+agent markers:  Read → {agent_id: a02e1d8e55b0190e4, agent_type: general-purpose}
+                Bash → {agent_id: a02e1d8e55b0190e4, agent_type: general-purpose}
+```
+
+`PreToolUse` fires for a subagent's own calls. The event carries `agent_id` and `agent_type`, while
+`session_id` remains the **parent's** — so a delegated call is identified by `agent_id`, never by
+session. Delegation is not an escape hatch, and §12.4 needs no rule forbidding subagents. `Agent` is
+itself a matched call carrying the delegated `prompt`, so the hook can log what was delegated.
+
+### The flaw both spikes exposed, and the fix
+
+§12.1's matcher was `"Edit|Write|MultiEdit|NotebookEdit|Bash"`. **An enumerated matcher fails open.**
+`MultiEdit` was in the list and does not appear to exist; `Agent` exists, takes a `prompt`, delegates
+work, and was not in the list at all. Any tool renamed or added in a future client version would pass
+unseen — silently, with no error, which is the worst shape a security control can fail in.
+
+§12.1 now uses **matcher `*`**, and the rows decide by inspecting the payload:
+
+- a `file_path` or `notebook_path` value → the file rows F1–F15;
+- a `command` value → the Bash rows B1–B6;
+- **anything else write-capable that the hook cannot classify → `ask`, never pass.**
+
+This is the same inversion already applied to B1 (G3): an allowlist of what may pass, rather than a
+denylist of what may not. It is the one place where pair deliberately defers to the engineer instead
+of guessing, and it is cheap — `ask` on an unrecognised tool costs one keystroke and cannot be wrong
+in a dangerous direction.

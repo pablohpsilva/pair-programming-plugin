@@ -828,7 +828,7 @@ next: step 4 (test) packages/billing/tests/test_instalment_plan.py
   "hooks": {
     "SessionStart":     [ { "hooks": [ { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/pair/hook.py\" session-start" } ] } ],
     "UserPromptSubmit": [ { "hooks": [ { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/pair/hook.py\" prompt" } ] } ],
-    "PreToolUse": [ { "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+    "PreToolUse": [ { "matcher": "*",
                       "hooks": [ { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/pair/hook.py\" pre" } ] } ]
   }
 }
@@ -838,9 +838,38 @@ next: step 4 (test) packages/billing/tests/test_instalment_plan.py
 - **Repo root** = `$CLAUDE_PROJECT_DIR` [V], falling back to `cwd` from stdin. If `<root>/pair/config.toml` doesn't exist, exit 0 silently: this isn't a pair repo.
 - **Fails closed:** any exception, or invalid config, exits **2** with the reason on stderr [V: exit 2 blocks].
 - **Decisions** are printed as `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny|ask","permissionDecisionReason":"<rule ID>: <message + what to do>"}}` [V]. For a pass, the hook prints nothing and exits 0.
-- **Tool input fields:** `file_path` (Edit/Write/MultiEdit), `notebook_path` (NotebookEdit), `command` (Bash). Text fields for F3: **every string value** in `tool_input` [T5].
+- **The matcher is `*`, deliberately** [V 2026-09-28, T5/T6]. An enumerated matcher fails open: a
+  tool that is renamed, added, or simply absent from the list is never seen by the hook. `MultiEdit`
+  was named in four places in this spec and never fired in the spike — it appears not to exist in the
+  client tested — while `Agent`, which takes a `prompt` and delegates work, was not named at all. The
+  hook therefore sees every call and decides by **inspecting the payload**, not by trusting a name.
+- **Tool input fields, observed** [V 2026-09-28, T5]:
+
+  | Tool | `tool_input` keys |
+  |---|---|
+  | `Write` | `file_path`, `content` |
+  | `Edit` | `file_path`, `old_string`, `new_string`, `replace_all` |
+  | `Read` | `file_path` |
+  | `Bash` | `command`, `description` |
+  | `Agent` | `description`, `prompt`, `subagent_type` |
+
+  Not observed: `MultiEdit`, `NotebookEdit`, `Glob`, `Grep`. The F-rows MUST therefore key on the
+  **shape** of the payload, not the tool name:
+  - a `file_path` or `notebook_path` value → the file rows F1–F15 apply;
+  - a `command` value → the Bash rows B1–B6 apply;
+  - **any other write-capable payload the hook does not recognise → `ask`, never pass.** A tool the
+    hook cannot classify is the one case where pair defers to the engineer rather than guessing.
+  - Text fields for F3: **every string value** in `tool_input`.
 - **Budget:** SHOULD finish in under 300 ms. It may run read-only `git status --porcelain`. It MUST NOT run tests or git write commands.
-- **Subagents:** the same rules apply [T6].
+- **Subagents: the same rules apply, and this is now measured** [V 2026-09-28, T6]. `PreToolUse`
+  fires for a subagent's own tool calls. The event carries **`agent_id`** and **`agent_type`**
+  (observed: `general-purpose`), while `session_id` stays the parent's — so a delegated call is
+  identified by `agent_id`, never by session. Delegation is not an escape hatch, and §12.4 needs no
+  rule forbidding subagents.
+- Because `Agent` is itself a matched tool call carrying a `prompt`, the hook can read the delegated
+  instruction before it runs. It MUST NOT parse that prompt for intent; the subagent's own calls are
+  where enforcement happens. It MUST log `agent_id`, `agent_type` and the prompt's length to
+  `pair/local/runs/hooks.jsonl`, so a step's evidence shows what was delegated.
 
 ### 12.3 SessionStart and UserPromptSubmit [V 2026-09-28, T2]
 
@@ -1238,8 +1267,8 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
 | T2 | A SessionStart hook's output is added to the model's context | [V 2026-09-28] partly: `additionalContext` arrives, but is **truncated to ~2 KB**, the rest persisted to a file | Injection carries a pointer only; the skill body loads by description (§12.3) |
 | T3 | Hook `deny` is honoured in every permission mode, `--dangerously-skip-permissions` included | [V 2026-09-28] | — (fallback not needed; no `disableBypassPermissionsMode` key required) |
 | T4 | The Bash tool runs without a TTY, and cannot open `/dev/tty` | [V 2026-09-27] | — (confirmed; see `engine/tests/FINDINGS.md`) |
-| T5 | Exact `tool_input` field names for Write/Edit/MultiEdit/NotebookEdit | [T] | F3 already scans every string field; adjust path fields |
-| T6 | PreToolUse fires for subagents' tool calls | [T] | The bootstrap skill already forbids delegating edits; CI backstops it |
+| T5 | Exact `tool_input` field names per tool | [V 2026-09-28] for `Write`/`Edit`/`Read`/`Bash`/`Agent`; `MultiEdit`/`NotebookEdit`/`Glob`/`Grep` unobserved | Matcher is `*` and the rows key on payload shape, so an unobserved tool cannot slip past (§12.1) |
+| T6 | `PreToolUse` fires for a subagent's tool calls | [V 2026-09-28] — with `agent_id` and `agent_type` on the event | — |
 | T7 | The llm-wiki layout (`wiki/`, `raw/`, `CLAUDE.md`) | [T] | Detection stays configurable; a manual path is always allowed |
 
 Build step 0 (§24) spikes each [T] item and records the result in `engine/tests/FINDINGS.md`. The spec is then updated where the facts differ.
