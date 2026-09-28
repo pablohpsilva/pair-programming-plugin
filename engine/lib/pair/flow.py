@@ -262,11 +262,19 @@ def _evidence_line(record):
     if record.get("tests"):
         parts.append(record["tests"])
     if record.get("changed_lines_covered") is not None:
-        parts.append(f"changed lines {record['changed_lines_covered']}%")
+        parts.append(f"changed lines {_number(record['changed_lines_covered'])}%")
     if record.get("scope_line") is not None:
-        parts.append(f"scope {record['scope_line']}%/{record['scope_branch']}% "
-                     f"(floor {record.get('floor_line')}/{record.get('floor_branch')})")
+        parts.append(f"scope {_number(record['scope_line'])}%/{_number(record['scope_branch'])}% "
+                     f"(floor {_number(record.get('floor_line'))}/"
+                     f"{_number(record.get('floor_branch'))})")
     return " · ".join(str(part) for part in parts)
+
+
+def _number(value):
+    """`95` rather than `95.0`, and `96.2` unchanged — the shape SPEC 11.5 writes."""
+    if value is None:
+        return "?"
+    return str(int(value)) if float(value).is_integer() else str(value)
 
 
 # -- transitions -------------------------------------------------------------------------------
@@ -412,9 +420,9 @@ def done(session, state=None):
     lines = [f"step {step.n} ({step.kind}) · {record['result']} · "
              f"{record.get('tests', '')}".rstrip(" · ")]
     if record.get("changed_lines_covered") is not None:
-        lines.append(f"changed lines {record['changed_lines_covered']}% · scope "
-                     f"{record['scope_line']}%/{record['scope_branch']}% "
-                     f"(floor {record['floor_line']}/{record['floor_branch']})")
+        lines.append(f"changed lines {_number(record['changed_lines_covered'])}% · scope "
+                     f"{_number(record['scope_line'])}%/{_number(record['scope_branch'])}% "
+                     f"(floor {_number(record['floor_line'])}/{_number(record['floor_branch'])})")
     if record.get("note"):
         lines.append(record["note"])
     lines.append(waiting_for(state))

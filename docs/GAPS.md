@@ -35,6 +35,7 @@ are left as they were; the SPEC is the record of what was decided.
 | G19 | §21 | No eval for the SessionStart injection (T2), and E12's "two sources disagree" setup is unspecified | step 4 | accepted |
 | G20 | §4, §11.4, §22 C32 | C32 asserts no vendor reference in *generated files*, but nothing enforces it in *commit messages* at write time | step 6 | **resolved** (D12) |
 | G21 | §7.2, §8.2 | `evidence.result` has no defined value for a step kind that runs no command (`doc`, `config`), nor for a `stub` step whose scope reports "no tests collected" | step 2 | **open** |
+| G22 | §8.1 | A `char` step's escape line must be "in the step report", but the report is written *after* `pair done` runs | step 2 | **accepted, implemented** |
 
 ---
 
@@ -261,3 +262,26 @@ kind, plus `no-tests` for case 2 so that C29's pass is distinguishable in `log.m
 `red | green` until this is decided, and cites this gap.
 
 **Blocks:** build step 2 (evidence). Step 1 does not touch it.
+
+---
+
+## G22 — where `pair done` looks for a char step's escape line
+
+**Where:** §8.1 (the `char` escape), §9.3 step 3–4, §10.2.
+
+§8.1 says a `char` step whose coverage did not rise passes only when "the step report carries a line
+`⚠️ no coverage gain: <reason>`", and that `done` records it verbatim. But §9.3's procedure runs
+`pair done` at step 3 and posts the step report at step 4 — so at the moment `done` runs, the report
+does not exist yet. Read literally, the escape can never be taken.
+
+**Resolved by reading "the step report" as "the report in `log.md`", which is where a step report
+lives (§10.2).** `pair done` scans the task's `log.md` for a `⚠️ no coverage gain:` line inside an
+entry for *this* step, and records it verbatim in the evidence. When it is absent, `done` fails with
+a message naming the file to append it to — so §9.3's loop still works: `done` fails, the agent
+appends the line and runs `done` again.
+
+The alternative — a `--no-coverage-gain "<reason>"` flag on `pair done` — was rejected: the reason
+has to reach the engineer's eyes in the report they are about to read, and a flag would let it be
+passed without ever being written down.
+
+Implemented as `evidence.find_no_gain_note`, covered by C22.

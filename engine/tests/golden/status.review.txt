@@ -1,0 +1,4 @@
+pair · 142-instalments · owner @ana · agent-drives · governance 0.1
+phase: review · step 3/3 (code) packages/billing/src/instalments.py
+evidence: green · 14 passed · changed lines 100% · scope 96%/95% (floor 95/95)
+waiting for: engineer → pair ok · pair rework "<note>" · pair pause

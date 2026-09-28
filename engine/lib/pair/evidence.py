@@ -49,6 +49,12 @@ class Run:
         return None
 
 
+def headline(outcome):
+    """The command's own last line of output, which is where a test runner puts its count."""
+    lines = [line.strip() for line in (outcome.summary() or "").splitlines() if line.strip()]
+    return lines[-1][:80] if lines else ""
+
+
 def run(scope, command_name, layout, extra_env=None):
     command = scope.command(command_name)
     if not command:
@@ -276,8 +282,7 @@ def _coverage_step(layout, config, state, scope, step, record, warnings, changed
             [f"the floor comes from {'the baseline' if baselines.entry(scope.name) else 'the target'} "
              f"for {scope.name} (SPEC 15.1)"])
 
-    record.update(result="green", summary=outcome.summary(),
-                  tests=f"suite green, {report.line_rate}% line / {report.branch_rate}% branch")
+    record.update(result="green", summary=outcome.summary(), tests=headline(outcome))
     return record, warnings, outcome
 
 

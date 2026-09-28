@@ -1,0 +1,3 @@
+pair @ 2026-09-27T10:12Z (supersedes any earlier pair: block) · task 142-instalments · phase stepping · mode agent-drives · step 1 of 3 (stub)
+use pair:pair-step: write step 1 (stub) packages/billing/src/instalments.py, then run `pair done`
+The engineer decides. Write one file per validated step. Run `pair status` first.

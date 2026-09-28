@@ -304,3 +304,49 @@ class Cli:
 @pytest.fixture
 def cli(repo):
     return Cli(repo)
+
+
+GOLDEN = pathlib.Path(__file__).parent / "golden"
+
+
+class Golden:
+    """Byte-for-byte comparison against `engine/tests/golden/` (SPEC 22.1).
+
+    `PAIR_UPDATE_GOLDEN=1` rewrites every file from actual output **and fails the run anyway**, so
+    an updating run can never be mistaken for a passing one.
+    """
+
+    def __init__(self, repo):
+        self.repo = repo
+        self.updating = os.environ.get("PAIR_UPDATE_GOLDEN") == "1"
+        self.updated = []
+
+    def normalise(self, text):
+        """Only paths are rewritten: time comes through the clock seam, so it needs nothing."""
+        return text.replace(str(self.repo.root), "<root>")
+
+    def check(self, name, actual):
+        path = GOLDEN / name
+        actual = self.normalise(actual)
+        if self.updating:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(actual, encoding="utf-8")
+            self.updated.append(name)
+            return
+        assert path.is_file(), (
+            f"{name} has no golden file. Run `PAIR_UPDATE_GOLDEN=1 pytest engine/tests` to write "
+            f"it, read the diff, and commit it.")
+        expected = path.read_text(encoding="utf-8")
+        assert actual == expected, (
+            f"{name} differs from its golden file. If the change is intended, run "
+            f"`PAIR_UPDATE_GOLDEN=1 pytest engine/tests` and put the diff in the step report.")
+
+
+@pytest.fixture
+def golden(repo):
+    keeper = Golden(repo)
+    yield keeper
+    if keeper.updating and keeper.updated:
+        pytest.fail("golden files were rewritten: " + ", ".join(keeper.updated)
+                    + " \u2014 review the diff, then run the suite again without "
+                      "PAIR_UPDATE_GOLDEN")

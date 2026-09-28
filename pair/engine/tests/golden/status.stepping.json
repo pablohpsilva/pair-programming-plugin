@@ -1,0 +1,15 @@
+{
+  "task": "142-instalments",
+  "phase": "stepping",
+  "mode": "agent-drives",
+  "status": "active",
+  "owner": "@ana",
+  "step": 1,
+  "steps": 3,
+  "lines": [
+    "pair · 142-instalments · owner @ana · agent-drives · governance 0.1",
+    "phase: stepping · step 1/3 (stub) packages/billing/src/instalments.py",
+    "waiting for: agent → write step 1 (stub) packages/billing/src/instalments.py, then pair done",
+    "next: step 2 (test) packages/billing/tests/test_instalments.py — splits evenly"
+  ]
+}

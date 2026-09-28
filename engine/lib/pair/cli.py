@@ -290,7 +290,10 @@ def _diff(session):
         else:
             lines.append(gitcmd.run(session.root, "diff", "--no-index", "/dev/null", rel,
                                     check=False).stdout.rstrip())
-    return flow.Outcome([line for line in lines if line], {"files": found})
+    body = [line for line in lines if line]
+    if not body:
+        body = [f"no changes in {', '.join(found)}"]
+    return flow.Outcome(body, {"files": found})
 
 
 def _index(session):

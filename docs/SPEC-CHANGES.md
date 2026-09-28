@@ -49,6 +49,7 @@
 | 2026-09-28 | §22 C31 | Restated as a check on the AST rather than on imports at runtime | An import inside a `try` or behind a platform check still breaks a colleague who installed nothing |
 | 2026-09-28 | §12.2 | The file rows apply to a path on a **write-capable** payload; a path on a known reader passes, and a path from an unknown tool asks | Taken literally, "a `file_path` value → F1–F15" denied every `Read` outside the current step, including the reading §9.2 requires before planning. Found by the F-row tests |
 | 2026-09-28 | §14.2 | `include`/`exclude` are stated to be relative to the source's **base** — the directory, or a glob path's literal prefix | The §14.2 example only shows a directory path, so the natural reading for `path = "docs/**/*.md"` is that the globs are repo-relative. They are not, and the result is a source that silently matches nothing. Found by `pair doctor` on pair's own repository |
+| 2026-09-28 | §3 tree, §3.3 | `marketplace.json` moves to `pair/.claude-plugin/` and names `./engine`; the engine ships `plugin.json` only | §4 declares the marketplace path as `./pair`, but the manifest sat at `pair/engine/.claude-plugin/`, so `claude plugin validate ./pair` failed with "No manifest found in directory". The two files disagreed about where the marketplace was. Found by running the validator against pair's own vendored tree |
 
 ---
 
