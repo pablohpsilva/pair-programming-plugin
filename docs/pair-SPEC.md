@@ -1027,7 +1027,7 @@ jobs:
 | `pair` | `pair/rules/**`, `pair/scopes/**/{RULES,SUMMARY}.md`, `pair/knowledge/**`, `pair/learnings/**`, `engine/defaults/rules.md` (always registered) | highest |
 | `docs` | Markdown under the given glob | high |
 | `adr` | ADR folders | high |
-| `llm-wiki` | The compiled `wiki/**/*.md` of an llm-wiki folder; `raw/`, `log/` and `audit/` are never indexed | medium |
+| `llm-wiki` | The Markdown a compiled wiki publishes, under that source's own `include`/`exclude` globs (§14.2). Nothing is indexed that `exclude` matches | medium |
 | `markdown` | Any other Markdown glob | medium |
 
 pair MUST NOT write to any source except `pair`.
@@ -1035,7 +1035,28 @@ pair MUST NOT write to any source except `pair`.
 ### 14.2 Detection (during `pair init`, or `pair init --sources`)
 - **`docs`:** folders `docs/`, `doc/` or `documentation/` containing `.md` files. A root `mkdocs.yml` (`docs_dir`) or `docusaurus.config.*` points to the docs root.
 - **`adr`:** folders named `adr`, `adrs` or `decisions` containing files matching `\d{3,4}-.*\.md`.
-- **`llm-wiki`:** a folder containing `wiki/`, `raw/` and `CLAUDE.md` [T7]. Searched in the repo up to depth 3, and at any path the engineer gives.
+- **`llm-wiki`:** **not detected by folder names.** The layout was never verified against a real
+  checkout (§23 T7), so pair MUST NOT hard-code one tool's directory names. The engineer registers
+  the source explicitly — `pair init --sources` prompts for a path, and any path is accepted — and
+  every `llm-wiki` source carries its own globs:
+
+  ```toml
+  [[sources]]
+  type    = "llm-wiki"
+  path    = "~/wikis/acme"
+  include = ["wiki/**/*.md"]        # the compiled pages
+  exclude = ["raw/**", "log/**", "audit/**", ".cache/**", "**/embeddings/**"]
+  ```
+
+  `include` and `exclude` are **required** for this type: a source with neither MUST be refused at
+  registration with "an llm-wiki source needs include and exclude globs — pair does not guess a
+  wiki's layout". The defaults above are what `pair init` offers, pre-filled and editable, and they
+  are a *suggestion the engineer confirms*, never a detection rule.
+
+  `exclude` wins over `include` on any path both match. When a registered path matches nothing,
+  `pair doctor` MUST report it as an empty source rather than passing silently — the failure mode
+  this design exists to prevent is indexing raw source material, and its twin is indexing nothing
+  at all while appearing healthy.
 - **`markdown`:** root `README.md`, `CONTRIBUTING.md` and package `README.md` files, offered as one optional source.
 
 ### 14.3 Registration
@@ -1217,7 +1238,7 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
 - C16: `baseline` never lowers; the floor formula (§15.1) matches a table of cases.
 - C17: `init` twice → no changes the second time; the init commit passes every CI gate.
 - C18: `find --rule TEST-007` → the exact row.
-- C19: a stale source is flagged; an llm-wiki's `raw/` is not indexed.
+- C19: a stale source is flagged; an `llm-wiki` source indexes only what its `include` globs match and never what `exclude` matches, asserted against the **configured** globs and not against hard-coded folder names; a source whose globs match nothing is reported as empty, not passed.
 - C20: `upgrade` runs migrations in order.
 - C21: a `stub` → `test` → `code` sequence for a new module passes end to end.
 - C22: a `char` step on existing code passes when green **and** coverage rises; it fails when coverage does not rise; it passes with `⚠️ no coverage gain: <reason>` in the report, and the reason is recorded verbatim in the evidence; it refuses with "run `pair baseline`" when the scope has no baseline entry (§8.1).
@@ -1269,7 +1290,7 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
 | T4 | The Bash tool runs without a TTY, and cannot open `/dev/tty` | [V 2026-09-27] | — (confirmed; see `engine/tests/FINDINGS.md`) |
 | T5 | Exact `tool_input` field names per tool | [V 2026-09-28] for `Write`/`Edit`/`Read`/`Bash`/`Agent`; `MultiEdit`/`NotebookEdit`/`Glob`/`Grep` unobserved | Matcher is `*` and the rows key on payload shape, so an unobserved tool cannot slip past (§12.1) |
 | T6 | `PreToolUse` fires for a subagent's tool calls | [V 2026-09-28] — with `agent_id` and `agent_type` on the event | — |
-| T7 | The llm-wiki layout (`wiki/`, `raw/`, `CLAUDE.md`) | [T] | Detection stays configurable; a manual path is always allowed |
+| T7 | The llm-wiki layout (`wiki/`, `raw/`, `CLAUDE.md`) | **not verifiable** — no real checkout was available. Fallback applied: detection removed, globs required per source (§14.2) | — |
 
 Build step 0 (§24) spikes each [T] item and records the result in `engine/tests/FINDINGS.md`. The spec is then updated where the facts differ.
 

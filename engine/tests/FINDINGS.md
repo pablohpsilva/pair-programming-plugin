@@ -11,7 +11,7 @@ Runbook: `docs/SPIKES.md`. Spec changes caused by a finding go to `docs/SPEC-CHA
 | T4 | The Bash tool runs without a TTY | **confirmed (stronger than assumed)** | §11.1 — see below |
 | T5 | Exact `tool_input` field names for the file tools | **confirmed** for 5 tools; 4 unobserved | §12.1, §12.4 — see below |
 | T6 | PreToolUse fires for a subagent's tool calls | **confirmed** | §12.1 — see below |
-| T7 | The llm-wiki layout (`wiki/`, `raw/`, `CLAUDE.md`) | not run | — |
+| T7 | The llm-wiki layout (`wiki/`, `raw/`, `CLAUDE.md`) | **not run** — no checkout available; fallback applied | §14.1, §14.2, C19 — see below |
 
 ---
 
@@ -536,3 +536,30 @@ This is the same inversion already applied to B1 (G3): an allowlist of what may 
 denylist of what may not. It is the one place where pair deliberately defers to the engineer instead
 of guessing, and it is cheap — `ask` on an unrecognised tool costs one keystroke and cannot be wrong
 in a dangerous direction.
+
+---
+
+## T7 — The llm-wiki layout
+
+- **Verdict: not run, and not deferred.** The engineer has no llm-wiki checkout, so the layout cannot
+  be verified against reality by anyone on this project. Rather than leave a `[T]` standing on an
+  unverifiable guess, the fallback `docs/SPIKES.md` specifies was applied on 2026-09-28.
+- **What was removed:** §14.2's rule that an llm-wiki is "a folder containing `wiki/`, `raw/` and
+  `CLAUDE.md`", searched to depth 3. That was a guess about one tool's directory names, and the
+  failure mode if wrong is bad in both directions — detection finds nothing while appearing healthy,
+  or it finds and indexes raw source material.
+- **What replaced it:** the engineer registers the source explicitly with a path, and every
+  `llm-wiki` source carries **required** `include`/`exclude` globs. `pair init` offers
+  `include = ["wiki/**/*.md"]` and `exclude = ["raw/**", "log/**", "audit/**", ".cache/**",
+  "**/embeddings/**"]` pre-filled and editable — a suggestion the engineer confirms, never a rule.
+  A source with neither is refused at registration. `exclude` wins over `include`. A registered path
+  matching nothing is reported by `pair doctor` as an empty source, not passed.
+- **C19 rewritten** to assert the *configured* exclusion rather than hard-coded folder names, and to
+  cover the empty-source case.
+
+**This is a better design than the one the spike would have confirmed**, which is worth saying
+plainly: hard-coding one tool's layout would have made pair wrong for every other wiki, and wrong
+silently. The spike being unrunnable removed an assumption instead of validating it.
+
+**If an llm-wiki checkout ever becomes available**, the only thing worth checking is whether the
+suggested defaults above are the right *suggestion*. Nothing in the spec depends on the answer.
