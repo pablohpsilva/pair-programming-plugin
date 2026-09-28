@@ -563,3 +563,66 @@ silently. The spike being unrunnable removed an assumption instead of validating
 
 **If an llm-wiki checkout ever becomes available**, the only thing worth checking is whether the
 suggested defaults above are the right *suggestion*. Nothing in the spec depends on the answer.
+
+---
+
+## Found while building, 2026-09-28
+
+Four facts the implementation turned up that the spikes did not, each recorded where the SPEC needed
+changing. They are here as well because they are all *observations about the host CLI or about git*,
+which is what this file is for.
+
+### The marketplace root must be the folder `.claude/settings.json` names [V 2026-09-28]
+
+§4 declares `extraKnownMarketplaces.pair-local` with `"path": "./pair"`, while §3's tree put
+`marketplace.json` at `pair/engine/.claude-plugin/`. The validator rejects the combination:
+
+```
+$ claude plugin validate ./pair
+✘ Found 1 error:
+  ❯ directory: No manifest found in directory. Expected .claude-plugin/marketplace.json
+    or .claude-plugin/plugin.json
+✘ Validation failed
+
+$ claude plugin validate ./pair/engine
+✔ Validation passed with warnings
+```
+
+Both folders validate when pointed at directly, so T1.1's result stands; what does not work is the
+**pair of files disagreeing** about where the marketplace is. Moving the manifest to
+`pair/.claude-plugin/marketplace.json` with `"source": "./engine"` validates cleanly:
+
+```
+$ claude plugin validate ./pair
+Validating marketplace manifest: …/pair/.claude-plugin/marketplace.json
+✔ Validation passed
+```
+
+`engine/.claude-plugin/` now holds `plugin.json` alone, and `plugin.json.version` mirrors
+`engine/VERSION` — T1.4 showed a local-directory marketplace reports `unknown` otherwise.
+
+### `git status --porcelain` reports an untracked *directory*, not its files
+
+A new file in a new folder appears as `?? packages/billing/tests/`. Every glob in the spec that a
+batch grant or the hook matches against (`packages/billing/**/*.py`) therefore missed the very
+files a step had just created. `-uall` fixes it, and both the hook and `evidence.file_set` pass it.
+
+Found by C30: an expedite task's first step wrote a new test file in a folder that did not exist
+yet, and `pair done` said nothing had changed.
+
+### A revert's diff is not the mirror image of the diff it reverses
+
+`git diff` writes removals before additions **within each hunk**, so flipping the sign of every line
+of the forward diff yields a sequence in a different order from the reverse diff. Comparing the two
+as ordered lists failed for every genuine `git revert`. The `commits` gate compares them as sorted
+multisets instead: a true inverse has exactly the same lines in the opposite sense.
+
+### `include`/`exclude` are relative to a source's base, and the failure is silent
+
+`path = "docs/**/*.md"` with `include = ["docs/**/*.md"]` matches nothing: the base is the glob's
+literal prefix (`docs`), so the include glob is matched against `MODULES.md`, not
+`docs/MODULES.md`. The source reports zero files while looking perfectly healthy — the exact failure
+§14.2 was written to prevent, arriving through the option meant to prevent it.
+
+Found by running `pair doctor` on pair's own repository, which is the only reason it was found at
+all. `doctor` now names the base in the message, and §14.2 states the rule.
