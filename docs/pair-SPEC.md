@@ -179,6 +179,24 @@ every *consuming* repo and is unaffected.
 `pair init` MUST NOT write `.claude/settings.local.json`: the declaration is for everyone who
 clones, and a local file would shadow it for one engineer only.
 
+**Project scope only. No pair command may write outside the repository.** This is absolute:
+
+- **Never `~/.claude/`** — not `settings.json`, not `plugins/`, not anything under it. A tool that
+  configures one repository has no business changing how every other repository behaves.
+- **Never `--scope user`.** Every command pair runs or prints uses `--scope project` (committed,
+  for everyone who clones) or `--scope local` (this clone only, gitignored). `pair doctor` MUST
+  print the project-scoped form; if an engineer prefers a user-scoped install, that is their choice
+  to make by hand, not pair's to make for them.
+- **Never global git config.** `core.hooksPath` is set with `git config` (repository-local), never
+  `--global`.
+- The host CLI keeps its own cache under `~/.claude/plugins/` — `known_marketplaces.json` and the
+  rest. That is the client's, not pair's: pair MUST NOT read, write or clean it, and `pair doctor`
+  reports what it finds there without touching it.
+
+Verified during build step 0: the whole install flow ran at project scope and left
+`~/.claude/settings.json` untouched — no `pair-local` marketplace, no `pair` key in
+`enabledPlugins` [V 2026-09-28, T1.2].
+
 **The two files have different activation costs, and `pair init` reports both:**
 
 - `.claude/settings.json` needs **nothing** from a colleague who clones. The plugin loads at the
@@ -1252,6 +1270,10 @@ Each case lives in `evals/<case>/` with `prompt.md` and `graders/`. Grader types
 - C30: an expedite task's test step accepts writes to test files matching `--test-paths`.
 - C31: no module under `engine/lib/pair/` imports a non-stdlib module (D2).
 - C32: no generated file, template or commit message produced by the CLI names an AI vendor or product (D6).
+- C37: **no CLI command writes outside the repository.** Run `init`, `doctor`, `baseline`, `upgrade`
+  and a full task end to end with `$HOME` pointed at an empty directory; assert that directory is
+  still empty afterwards, and that no argument list contains `--scope user` or `git config --global`
+  (§4).
 
 **Hook (`tests/hook/`)**, driven by JSON on stdin:
 - One test per row F1–F15 and B1–B6, including: `bash -c "pair ok"` and `python3 pair/engine/bin/pair ok` (deny), `pair done 2>&1` (pass), `git add .` (deny), and `pair status; sed -i s/a/b/ src/x.py` (ask: the strictest segment wins).

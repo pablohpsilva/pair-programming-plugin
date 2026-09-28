@@ -23,6 +23,7 @@ stays the source of truth for behaviour.**
 | D13 | Skill folder names | Kept as `{pair,pair-plan,pair-step,pair-close}`; the docs spell the invoked names `pair:pair-plan`, … | clarified |
 | D14 | Where the `pair` CLI ships | In the plugin's `bin/`, so it is on the agent's PATH — accepting that the plugin is terminal-only | new |
 | D6b | Reach of the no-vendor-reference rule | Extends to this spec's own prose, not only to commits and generated output | extended |
+| D15 | Scope of everything pair installs | **Project only.** No command writes to `~/.claude/`, uses `--scope user`, or touches global git config | new |
 
 ---
 
@@ -189,3 +190,23 @@ the platform was named five times, the engineer said yes. §1, §0's `[V]` note,
 `claude plugin marketplace add` in §4 are executable commands, not references — removing the binary
 name would make the instruction unfollowable. The rule is about attribution and branding, and a
 command that must be typed is neither.
+
+## D15 — Everything pair installs is project-scoped (2026-09-28)
+
+pair configures one repository. It MUST NOT change how the engineer's other repositories behave.
+So no command writes to `~/.claude/` — not `settings.json`, not `plugins/` — none uses
+`--scope user`, and none touches global git config. `core.hooksPath` is set repository-locally.
+
+Where an engineer might reasonably want a user-scoped install, `pair doctor` prints the
+project-scoped command and leaves the choice to them: that is a decision about their own machine,
+not one pair makes on their behalf.
+
+The host CLI's own cache under `~/.claude/plugins/` belongs to the client. pair does not read,
+write or clean it; `doctor` reports what it finds there and touches nothing.
+
+Enforced, not just stated: C37 runs `init`, `doctor`, `baseline`, `upgrade` and a full task with
+`$HOME` pointed at an empty directory and asserts the directory is still empty, and that no
+argument list contains `--scope user` or `git config --global`.
+
+Build step 0 is the evidence this is achievable: the entire install flow ran at project scope and
+left the engineer's settings untouched (T1.2).
