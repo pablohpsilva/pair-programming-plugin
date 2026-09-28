@@ -1,0 +1,12 @@
+path = "<path under pair/scopes/>"
+cwd = "<same, or the module root>"
+timeout_seconds = 900
+no_tests_exit_codes = []
+module = ""
+
+[commands]
+test = "mvn -q -B test"
+coverage = "mvn -q -B test jacoco:report && cp target/site/jacoco/jacoco.xml $PAIR_COVERAGE_XML"
+lint = "mvn -q -B checkstyle:check"
+validate = "mvn -q -B compile"
+migrate_check = ""

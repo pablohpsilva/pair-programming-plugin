@@ -47,6 +47,7 @@
 | 2026-09-28 | §3 engine tree, §3.2 | `schemas/` added to the vendored engine layout; `docs/` row names `MODULES.md`; `tests/` row names `fixtures/` and `golden/` | The folder contract has to list what is actually shipped |
 | 2026-09-28 | §10.7 | The `.ts` row of `import_patterns` now uses TOML multi-line literal strings (`'''…'''`) | **The example was not valid TOML.** A literal string cannot contain `'`, and the regex character class `['"]` does; `tomllib` rejected the block with "Unclosed array". Found by C39 validating the spec's own example |
 | 2026-09-28 | §22 C31 | Restated as a check on the AST rather than on imports at runtime | An import inside a `try` or behind a platform check still breaks a colleague who installed nothing |
+| 2026-09-28 | §12.2 | The file rows apply to a path on a **write-capable** payload; a path on a known reader passes, and a path from an unknown tool asks | Taken literally, "a `file_path` value → F1–F15" denied every `Read` outside the current step, including the reading §9.2 requires before planning. Found by the F-row tests |
 
 ---
 

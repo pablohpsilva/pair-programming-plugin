@@ -929,7 +929,13 @@ next: step 4 (test) packages/billing/tests/test_instalment_plan.py
 
   Not observed: `MultiEdit`, `NotebookEdit`, `Glob`, `Grep`. The F-rows MUST therefore key on the
   **shape** of the payload, not the tool name:
-  - a `file_path` or `notebook_path` value → the file rows F1–F15 apply;
+  - a path value (`file_path`, `notebook_path`) **on a write-capable payload** → the file rows
+    F1–F15 apply. Write-capable means the tool is a known writer (`Write`, `Edit`, `MultiEdit`,
+    `NotebookEdit` and equivalents) **or** the payload carries a content field (`content`,
+    `new_string`, `patch`, `edits`, …). A path on a known **reader** (`Read`, `Glob`, `Grep`,
+    `LS`, `WebFetch`, …) passes: §9.2 requires the agent to read the likely files before planning,
+    and §19.1 protects paths from *edits*, not from being read. A path from a tool on neither list
+    is unclassifiable and therefore **asks**, per the rule below.
   - a `command` value → the Bash rows B1–B6 apply;
   - **any other write-capable payload the hook does not recognise → `ask`, never pass.** A tool the
     hook cannot classify is the one case where pair defers to the engineer rather than guessing.

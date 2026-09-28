@@ -1,0 +1,94 @@
+# pair defaults and floors (SPEC 5.3).
+#
+# Every key below is the default `pair init` writes. The [floors] table states how far a project
+# may move each one: a project may only make a floor stricter, never looser (SPEC 5.2).
+
+format = 1
+engine = "0.1.0"
+governance = "0.1"
+
+[project]
+name = ""
+default_branch = "main"
+
+[steps]
+max_files = 1
+max_changed_lines = 50
+batch_max_files = 20
+
+[files]
+tests = ["**/test_*.py", "**/*_test.py", "**/*_test.go", "**/*.test.[jt]s", "**/*.test.[jt]sx",
+         "**/*.spec.[jt]s", "**/*.spec.[jt]sx", "**/*Test.java", "**/*Test.kt", "**/tests/**",
+         "**/__tests__/**", "**/*.feature"]
+migrations = ["**/migrations/**", "**/migrate/**"]
+dependencies = ["**/package.json", "**/pyproject.toml", "**/requirements*.txt", "**/go.mod", "**/go.sum",
+                "**/Cargo.toml", "**/Cargo.lock", "**/pom.xml", "**/build.gradle*", "**/*.lock",
+                "**/package-lock.json", "**/pnpm-lock.yaml", "**/yarn.lock", "**/poetry.lock", "**/uv.lock"]
+docs = ["**/*.md", "**/*.mdx", "**/*.rst", "**/*.adoc", "**/*.txt"]
+config = ["**/*.toml", "**/*.yaml", "**/*.yml", "**/*.json", "**/*.ini", "**/*.cfg", "**/*.env.example",
+          "**/Dockerfile", "**/*.tf", "**/Makefile", "**/Taskfile.yml"]
+
+[tests]
+wrong_reason_patterns = ["ImportError", "ModuleNotFoundError", "SyntaxError", "NameError",
+                         "Cannot find module", "cannot find symbol", "undefined: ", 'error\[E\d+\]']
+
+[coverage]
+target = 95
+changed_lines = 100
+ratchet_tolerance = 0.5
+
+[protect]
+extra = []
+
+[shell]
+ask_on_writes = true
+
+[search]
+max_results = 5
+stale_days = 180
+
+[learning]
+promote_after = 3
+review_unused_days = 90
+
+[waivers]
+max_repeats = 3
+
+[expedite]
+review_hours = 24
+max_files = 10
+
+# --- floors ------------------------------------------------------------------------------------
+# op: "eq" the value is fixed · "max" a project may only go lower · "min" only higher.
+
+[floors."steps.max_files"]
+op = "eq"
+value = 1
+
+[floors."steps.batch_max_files"]
+op = "max"
+value = 50
+
+[floors."coverage.target"]
+op = "min"
+value = 95
+
+[floors."coverage.changed_lines"]
+op = "eq"
+value = 100
+
+[floors."coverage.ratchet_tolerance"]
+op = "max"
+value = 1.0
+
+[floors."expedite.review_hours"]
+op = "max"
+value = 72
+
+[floors."expedite.max_files"]
+op = "max"
+value = 20
+
+[floors."waivers.max_repeats"]
+op = "max"
+value = 3
