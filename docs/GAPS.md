@@ -5,7 +5,7 @@ spec yet: each row is a question with a proposed answer, awaiting the engineer. 
 answers move to `SPEC-CHANGES.md` and then into the SPEC itself.
 
 Status: `open` · `accepted` (recorded in SPEC-CHANGES.md) · `rejected`.
-**All 19 were answered on 2026-09-27 and applied to the SPEC**, except G20, raised afterwards.
+**All 19 were answered on 2026-09-27 and applied to the SPEC.** G20, raised afterwards, was resolved on 2026-09-28 by D12: `pair init` commits `githooks/commit-msg` and `pair doctor` checks that `core.hooksPath` activates it. No gap is open.
 Three answers went against the proposal written below — G7 (both config files strict), G13 (rule
 IDs must be globally unique) and G14 (the plan hash is stored per step) — and G4 gained an escape
 hatch, because requiring a char step to raise coverage would otherwise have made a
@@ -33,7 +33,7 @@ are left as they were; the SPEC is the record of what was decided.
 | G17 | §17, §12.4 F4 | `local/active` can point at a task whose folder is absent on the checked-out branch | step 2 | accepted |
 | G18 | §22 | Missing acceptance tests: `red` gate with an empty test command; a range containing a merge commit | step 7 | accepted |
 | G19 | §21 | No eval for the SessionStart injection (T2), and E12's "two sources disagree" setup is unspecified | step 4 | accepted |
-| G20 | §4, §11.4, §22 C32 | C32 asserts no vendor reference in *generated files*, but nothing enforces it in *commit messages* at write time | step 6 | open |
+| G20 | §4, §11.4, §22 C32 | C32 asserts no vendor reference in *generated files*, but nothing enforces it in *commit messages* at write time | step 6 | **resolved** (D12) |
 
 ---
 

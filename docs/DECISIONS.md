@@ -19,6 +19,10 @@ stays the source of truth for behaviour.**
 | D10 | Initial governance version | `0.1` | default kept |
 | D11 | Scope of enforcement | **Every** change outside `pair/` goes through a task (pointer files excepted) | default kept |
 | G1 | Where the engine's source lives in this repo | `<root>/engine/`; `pair/engine/` is a vendored copy | new |
+| D12 | Files outside `pair/` | **Allowed.** `.claude/settings.json` and `githooks/commit-msg` join the three in §4 | changed |
+| D13 | Skill folder names | Kept as `{pair,pair-plan,pair-step,pair-close}`; the docs spell the invoked names `pair:pair-plan`, … | clarified |
+| D14 | Where the `pair` CLI ships | In the plugin's `bin/`, so it is on the agent's PATH — accepting that the plugin is terminal-only | new |
+| D6b | Reach of the no-vendor-reference rule | Extends to this spec's own prose, not only to commits and generated output | extended |
 
 ---
 
@@ -124,3 +128,64 @@ describes this repo.
 
 Open operational point, see `GAPS.md` G5: while `pair/engine/` is the copy that runs, the tool
 in use is one `pair upgrade` behind the code just written.
+
+---
+
+## D12 — Files outside `pair/` are allowed (2026-09-28)
+
+§4 forbade any file outside `pair/` beyond the three pointer files. Two things wanted a fourth,
+and the engineer allowed both after the mechanism was verified in build step 0.
+
+**`.claude/settings.json`** is the whole install story, and it costs a colleague nothing. It
+declares `extraKnownMarketplaces.pair-local` with a **relative** `"path": "./pair"` and
+`enabledPlugins."pair@pair-local": true`. Measured (T1.8): the relative path resolves against the
+project directory, **no install record is created**, nothing is written to the engineer's own
+settings, and the plugin loads at the first session that accepts the workspace-trust dialog.
+Verified to survive repeated cloning.
+
+**`githooks/commit-msg`** enforces D6 at write time. It is **not** the same kind of win: measured,
+`core.hooksPath` is local git config and a clone does **not** inherit it, so the committed hook is
+inert until each engineer runs `git config core.hooksPath githooks`. `pair doctor` checks
+`git config --get core.hooksPath` and prints the command when it is unset. Because the setting
+takes exactly one directory, `doctor` reports a conflict with another tool's hooks directory rather
+than overwriting it.
+
+Consequences: §4 gains both rows and a paragraph separating their activation costs; `pair init`
+merges only its two keys and never writes `.claude/settings.local.json`, which would shadow the
+declaration for one engineer; §11.4 step 6 no longer tells a colleague to install anything; and
+`pair doctor` grows two checks. The cloud-session fallback stays documented, because a cloud
+session never shows the trust dialog.
+
+## D13 — Skill folder names stay; the docs name the invocation (2026-09-28)
+
+Skills are namespaced `<plugin>:<folder>`, so §3's folders surface as `pair:pair`,
+`pair:pair-plan`, `pair:pair-step`, `pair:pair-close`. Renaming the folders to `{pair,plan,step,
+close}` would read better at the call site; the engineer kept the folder names. Every place that
+names a skill — §9.1's phase map, §9.2–§9.4's headings, §21's eval prompts — uses the prefixed
+form, recorded in the new §3.3.
+
+## D14 — The CLI ships in the plugin's `bin/` (2026-09-28)
+
+A plugin's `bin/` is on the agent's shell PATH while the plugin is enabled, so `pair` is a bare
+command in an agent session with no PATH setup and no wrapper. §12.4's Bash rows already parse a
+bare `pair` command word, which is now the normal case rather than a fallback.
+
+The accepted cost: a plugin with a top-level `bin/` is not installable on the hosted web and
+desktop products. pair is a terminal tool regardless — §11.1's human-only commands require a TTY
+(T4) and CI invokes the CLI by path — so nothing in the spec worked in a hosted session anyway.
+`pair doctor` does not treat a hosted session as supported.
+
+One wrinkle, recorded in §3.3: PATH comes from the **plugin root**, so the `pair` an agent session
+runs is always the vendored `pair/engine/bin/pair`, never `<root>/engine/bin/pair`. In this
+repository that is precisely why §3.2 refreshes the vendored copy at each build-step boundary.
+
+## D6b — The no-vendor-reference rule reaches this spec's prose (2026-09-28)
+
+D6 said "no reference to the vendor at all". Asked whether that covered the spec's own prose, where
+the platform was named five times, the engineer said yes. §1, §0's `[V]` note, §2's engine row, §3's
+`marketplace.json` comment and §23's title now say "the host CLI" or "an agent".
+
+**One exception, deliberate:** literal command invocations stay. `claude plugin eval` in §21 and
+`claude plugin marketplace add` in §4 are executable commands, not references — removing the binary
+name would make the instruction unfollowable. The rule is about attribution and branding, and a
+command that must be typed is neither.

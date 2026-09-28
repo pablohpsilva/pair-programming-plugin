@@ -299,7 +299,37 @@ must say that CI is then the only real enforcement.
 
 ---
 
-## T1 — A plugin loads from a folder inside the repo  · human
+## T1 — A plugin loads from a folder inside the repo  · agent, then human
+
+**Status, 2026-09-28.** Phases 1 and 2 are **done** — see `engine/tests/FINDINGS.md` T1.1–T1.5.
+What follows is the original runbook; the parts already answered are marked. Only **phase 3**
+below is still owed, and it needs a person. The `/plugin` slash commands are not the only route:
+`claude plugin validate | marketplace add | install | list | details` all run non-interactively.
+
+### Phase 3 — the in-session checks (human)
+
+Two fixtures are prepared and left in place:
+
+| Fixture | State | What it answers |
+|---|---|---|
+| `/tmp/pair-spike-plugin` | marketplace added and plugin installed at project scope | canary, hook firing, `${CLAUDE_PLUGIN_ROOT}`, `/reload-plugins` |
+| `/tmp/pair-spike-clone` | cold clone, nothing installed, committed relative path in `.claude/settings.json` | whether the workspace-trust dialog is what a clone needs (T1.5) |
+
+1. Open a session at `/tmp/pair-spike-plugin` and ask: *"Is the pair plugin loaded? Which skills
+   do you have?"* Look for the canary `PAIR_PLUGIN_LOADED_4K2` and for a second skill named
+   `second`.
+2. In the same session, look for the hook line `PAIR_PLUGIN_HOOK_RAN root=<…> project=<…>` and
+   **paste both paths back**. Whether `root` is the source directory or
+   `~/.claude/plugins/cache/…` decides how §12.1 writes every hook command.
+3. Edit `pair/engine/hooks/hooks.json` there (change the echoed string), run `/reload-plugins`,
+   and see whether the new string appears without a reinstall. T1.3 proved this for a *skill*;
+   hooks are the case §12 depends on.
+4. Open a session at `/tmp/pair-spike-clone`, accept the workspace-trust dialog, and ask the same
+   question. If the plugin loads, a committed `.claude/settings.json` is the whole install story
+   and §4 gains a fourth pointer file; if it does not, §11.4 step 6 must spell out the two
+   commands each engineer runs after cloning.
+
+---
 
 **Why it matters.** D4 vendors the engine at `pair/engine/` and expects Claude Code to load it
 from there as a local marketplace. If it cannot, the plugin ships from a git marketplace while
