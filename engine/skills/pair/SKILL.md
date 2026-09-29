@@ -22,6 +22,20 @@ Run `pair status`. Then follow the phase:
 Do not read files, plan, or edit anything before `pair status`. The phase decides what you are
 allowed to do, and the hook enforces it.
 
+## When you need a human-only command
+
+Say **where** it has to be run, not only that you cannot run it. A human-only command opens
+`/dev/tty`, so it needs the engineer's own shell — a separate terminal window, not this chat and
+not a tool call. Typing it into the conversation looks identical to asking you to run it, and the
+task then stalls with each side waiting for the other.
+
+> `pair approve` is yours to run. In your own terminal, in the repo:
+> `export PATH="$PWD/engine/bin:$PATH"` (once per shell), then `pair approve`.
+> Tell me when it's done and I'll pick up from `pair status`.
+
+If the engineer repeats the command in chat, assume it did not reach a shell: ask whether `pair`
+is on their PATH and whether the window they used was a terminal.
+
 ## Communication
 
 Follow COMM-001…004. Run `pair find --rule COMM-001` for the text of any rule.

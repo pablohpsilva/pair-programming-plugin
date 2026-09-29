@@ -626,3 +626,87 @@ literal prefix (`docs`), so the include glob is matched against `MODULES.md`, no
 
 Found by running `pair doctor` on pair's own repository, which is the only reason it was found at
 all. `doctor` now names the base in the message, and §14.2 states the rule.
+
+---
+
+## Found while dogfooding, 2026-09-29
+
+Build step 10 (§24): the first attempt to drive a real task end to end. It never reached `pair
+start`. Everything below came out of that stall, which is the point of the step — none of it was
+reachable from the test suite, because the test suite drives the CLI directly and never has to
+find a terminal.
+
+### The engineer typed the human-only commands into the agent's chat [V 2026-09-29]
+
+`pair start`, then `pair approve`, were typed into the Claude Code prompt. The agent read them as
+prose, answered "that is human-only, please run it yourself", and both sides waited for the other
+for five turns.
+
+Neither side was wrong and neither could see the other's screen. `tty.confirm` is enforcement
+against the *agent*; nothing in the design tells the *engineer* that the command needs a shell the
+agent cannot see, and "run it yourself" reads as already done to someone who just typed it.
+
+The skill now says where — a separate terminal window, not the chat, not a tool call — and treats a
+repeated command in chat as evidence it never reached a shell. The deeper lesson is that a
+permission boundary needs an explanation on both sides of it, not only the side it blocks.
+
+### `pair` is not on PATH, and a symlink does not fix it
+
+`engine/bin/pair` resolves its library with `os.path.abspath(__file__)`, which does not follow
+symlinks: a link in `/usr/local/bin` would look for `lib/` beside the link. `export
+PATH="$PWD/engine/bin:$PATH"` is the working route, and nothing said so.
+
+### A pipe inside quotes split the command and asked about an ordinary read
+
+`SEGMENT_SPLIT` was a regex over `|`, `&&`, `;`. Quoting does not survive a regex, so
+
+    grep -n "red\|Gate" docs/pair-SPEC.md
+
+split into two halves, neither of which `shlex` could parse, and fell through to B5: *"the hook
+cannot parse that command with confidence."* Any regex alternation, any `echo 'a|b'`, any `grep
+"a|b"`. The engineer confirmed a read-only grep several times in one session.
+
+This is the worst shape a false ask can take. A prompt that fires on safe commands trains the
+engineer to approve without reading, and the one that matters arrives after the habit is set.
+Replaced with a scanner that tracks quote state (`split_on_separators`).
+
+### `sed -n '1,20p' file` was classified as a write
+
+`sed` and `perl` were in `WRITE_COMMANDS` unconditionally, but both stream to stdout unless asked
+for `-i`, and `sed -n …p` is the ordinary way to read part of a file — the idiom most agent
+harnesses recommend. Every such read asked, and reading a file under `pair/` was *denied* outright
+as a PAIR-006 violation, because `_touches_protected` used the same list.
+
+`_writes_files` now decides, and `_edits_in_place` reads the flags. It stays generous: a bundled
+`-ni`, a `--in-place`, or a `w` command in the script all count, because one ask too many is
+cheaper than a silent write.
+
+### A token-filtering shell wrapper hid the test output
+
+The engineer's environment rewrites `pytest` through a proxy that summarised the run as "No tests
+collected" while the suite was passing. Not a pair defect, but it cost a debugging cycle, and any
+repository using pair may have one: `pair doctor` cannot see it, and a step's `red` evidence would
+be read from it.
+
+### `open("/dev/tty", "r+")` crashed on the engineer's terminal [V 2026-09-29]
+
+The first human-only command ever run by a human died with a traceback:
+
+    io.UnsupportedOperation: File or stream is not seekable.
+
+An update mode builds a `BufferedRandom`, and CPython refuses to build one on a stream that does
+not report itself seekable. `available()` passed — a read-only open of `/dev/tty` works fine — so
+the check that exists to prove the terminal is reachable said yes, and the line right after it
+crashed.
+
+`tty.confirm` now opens two one-way handles, and any `OSError` becomes a `Refused` with the
+underlying reason attached rather than a traceback. `io.UnsupportedOperation` inherits from
+`OSError`, so one clause covers both shapes.
+
+Two things worth keeping. The first: this is the **only** channel PAIR-005 has, and it was the one
+piece of the design that no test could reach, because the suite runs with captured stdio — which
+is precisely the agent's situation, so every test of it exercised the refusal path and none the
+success path. A single-channel design needs a human to run it at least once before it can be said
+to work at all. The second: failing closed saved it. A crash in `confirm` refuses the command;
+had the code defaulted to "assume yes when the terminal is odd", the same bug would have silently
+handed the agent every human-only command in the tool.

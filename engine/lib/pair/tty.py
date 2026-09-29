@@ -41,8 +41,15 @@ def confirm(question, expect="y"):
     """
     if not available():
         raise Refused(NO_TERMINAL)
-    with open("/dev/tty", "r+") as channel:
-        channel.write(f"{question} ")
-        channel.flush()
-        answer = channel.readline().strip()
-    return answer == expect
+    # Two one-way handles, never `r+`: an update mode builds a BufferedRandom, and CPython refuses
+    # to build one on a terminal that does not report itself seekable. That is not exotic — it is
+    # a plain `io.UnsupportedOperation` traceback on the engineer's own machine, in the one channel
+    # every human-only command depends on.
+    try:
+        with open("/dev/tty", "w") as out, open("/dev/tty", "r") as incoming:
+            out.write(f"{question} ")
+            out.flush()
+            answer = incoming.readline()
+    except OSError as problem:
+        raise Refused(f"{NO_TERMINAL} (/dev/tty could not be opened: {problem})") from problem
+    return answer.strip() == expect

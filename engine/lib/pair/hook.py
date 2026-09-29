@@ -69,11 +69,14 @@ GIT_BRANCH_WRITE = ("-d", "-D", "-m", "-M")
 WRITE_COMMANDS = frozenset("""
 tee sed perl mv cp rm touch truncate dd ln chmod chown install rsync unzip tar
 """.split())
+# These stream to stdout unless asked to edit in place, and `sed -n '1,20p' file` is the ordinary
+# way to read part of a file. Treating them as writers regardless asked on every read.
+IN_PLACE_ONLY = frozenset(("sed", "perl"))
 INTERPRETERS = frozenset(("python", "python3", "node", "ruby", "perl"))
 CODE_FLAGS = ("-c", "-e")
 CODE_WRITE_HINTS = ("open(", "write", "fs.", "File.")
 PREFIX_WORDS = frozenset(("env", "sudo", "nohup", "time", "command"))
-SEGMENT_SPLIT = re.compile(r"(?:\|\||&&|;|\||\n)")
+SEPARATORS = ("||", "&&", "|", ";", "\n")
 REDIRECT = re.compile(r"^(?:\d*>>?|&>)$")
 SAFE_REDIRECTS = ("/dev/null", "/dev/stderr", "/dev/stdout")
 
@@ -263,10 +266,50 @@ def _redirect_targets(tokens):
     return found
 
 
+def split_on_separators(command):
+    """Split a command line on shell separators that are not inside quotes.
+
+    A regex cannot do this. `grep -n "a|b" f` holds a pipe that is *data*: splitting on it leaves
+    two halves shlex cannot parse, and the hook then asked the engineer to confirm an ordinary
+    read. Quoting is the only thing that decides, so this scans rather than matches.
+    """
+    pieces, current, quote, escaped = [], [], None, False
+    text = command or ""
+    index = 0
+    while index < len(text):
+        char = text[index]
+        index += 1
+        if escaped:
+            current.append(char)
+            escaped = False
+        elif quote:
+            current.append(char)
+            if char == "\\" and quote == '"':
+                escaped = True
+            elif char == quote:
+                quote = None
+        elif char == "\\":
+            current.append(char)
+            escaped = True
+        elif char in "'\"":
+            current.append(char)
+            quote = char
+        else:
+            separator = next((s for s in SEPARATORS if text.startswith(s, index - 1)), None)
+            if separator:
+                pieces.append("".join(current))
+                current = []
+                index += len(separator) - 1
+            else:
+                current.append(char)
+    pieces.append("".join(current))
+    return pieces
+
+
 def segments(command):
     """Every segment of a command line, recursing into `sh -c`, `eval` and `xargs` (SPEC 12.4)."""
     found = []
-    for piece in SEGMENT_SPLIT.split(command or ""):
+    for piece in split_on_separators(command or ""):
         text = piece.strip()
         if not text:
             continue
@@ -291,7 +334,7 @@ def _nested(segment):
         inner.append(" ".join(segment.args))
     found = []
     for text in inner:
-        for piece in SEGMENT_SPLIT.split(text):
+        for piece in split_on_separators(text):
             stripped = piece.strip()
             if stripped:
                 nested = Segment(stripped)
@@ -348,7 +391,7 @@ def decide_bash_segment(context, segment):
     risky = [target for target in segment.redirects if not _safe_redirect(target)]
     if risky:
         return _maybe_ask(context, f"a redirect to {risky[0]}")
-    if base in WRITE_COMMANDS:
+    if _writes_files(segment):
         return _maybe_ask(context, f"`{base}` writes files")
     return passed("B6")
 
@@ -393,10 +436,38 @@ def _git_row(segment):
     return None
 
 
+def _edits_in_place(segment):
+    """True when `sed`/`perl` were asked to edit a file rather than stream to stdout.
+
+    Deliberately generous: a bundled short flag holding an `i` (`-ni`) counts, and so does a `w`
+    command in the script, because being asked once too often is cheaper than a silent write.
+    """
+    script = None
+    for index, token in enumerate(segment.args):
+        if token.startswith("--"):
+            if token.startswith("--in-place"):
+                return True
+        elif token.startswith("-") and len(token) > 1:
+            if "i" in token[1:]:
+                return True
+            if token.endswith("e") and index + 1 < len(segment.args):
+                script = segment.args[index + 1]
+        elif script is None:
+            script = token
+    return bool(script and re.search(r"[/;]\s*w(\s|$)", script))
+
+
+def _writes_files(segment):
+    base = pathlib.PurePosixPath(segment.word).name if segment.word else ""
+    if base not in WRITE_COMMANDS:
+        return False
+    return _edits_in_place(segment) if base in IN_PLACE_ONLY else True
+
+
 def _touches_protected(context, segment):
     candidates = list(segment.redirects)
     base = pathlib.PurePosixPath(segment.word).name if segment.word else ""
-    if base in WRITE_COMMANDS:
+    if _writes_files(segment):
         candidates += [token for token in segment.args if not token.startswith("-")]
     if base in INTERPRETERS:
         code = _inline_code(segment)
