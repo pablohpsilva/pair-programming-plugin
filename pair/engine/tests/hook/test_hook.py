@@ -543,3 +543,52 @@ def test_prompt_returns_one_status_line(stepping):
     assert block["hookEventName"] == "UserPromptSubmit"
     assert block["additionalContext"].startswith("[pair] 142-instalments")
     assert "\n" not in block["additionalContext"]
+
+
+# -- found while dogfooding (FINDINGS.md) --------------------------------------------------------
+
+@pytest.mark.parametrize("command", [
+    r'grep -n "red\|Gate" docs/pair-SPEC.md',
+    "grep -n 'a|b' docs/pair-SPEC.md",
+    'echo "a|b"',
+    r"""awk '/^## 13\./,/^## 14\./' docs/pair-SPEC.md | grep -n "red\|Gate" | head -30""",
+])
+def test_b6_a_pipe_inside_quotes_is_data_not_a_separator(stepping, command):
+    assert verdict(pre(stepping, "Bash", {"command": command}))[0] == "pass", command
+
+
+def test_segments_splits_on_operators_but_never_inside_quotes():
+    assert [s.word for s in hook.segments("ls -la | grep x && echo hi; cat f")] == [
+        "ls", "grep", "echo", "cat"]
+    assert [s.word for s in hook.segments(r'grep -n "a|b" f')] == ["grep"]
+    assert [s.word for s in hook.segments("echo 'a;b' | wc -l")] == ["echo", "wc"]
+
+
+def test_b5_an_unterminated_quote_still_asks(stepping):
+    decision, reason = verdict(pre(stepping, "Bash", {"command": 'grep -n "unterminated f.md'}))
+    assert decision == "ask"
+    assert "cannot parse that command" in reason
+
+
+@pytest.mark.parametrize("command", [
+    "sed -n '1,20p' docs/pair-SPEC.md",
+    "sed -n /money/p packages/billing/src/money.py",
+    "perl -ne 'print' README.md",
+])
+def test_b6_sed_and_perl_that_only_read_pass(stepping, command):
+    assert verdict(pre(stepping, "Bash", {"command": command}))[0] == "pass", command
+
+
+@pytest.mark.parametrize("command", [
+    "sed -i s/a/b/ packages/billing/src/money.py",
+    "sed -i.bak s/a/b/ packages/billing/src/money.py",
+    "sed --in-place s/a/b/ packages/billing/src/money.py",
+    "sed -ne s/a/b/w out.txt packages/billing/src/money.py",
+])
+def test_b5_sed_in_place_still_asks(stepping, command):
+    assert verdict(pre(stepping, "Bash", {"command": command}))[0] == "ask", command
+
+
+def test_b6_reading_a_pair_file_with_sed_is_not_a_protected_write(stepping):
+    assert verdict(pre(stepping, "Bash",
+                       {"command": "sed -n '1,5p' pair/config.toml"}))[0] == "pass"
